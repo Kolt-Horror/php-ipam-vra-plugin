@@ -1,0 +1,5 @@
+# vRA VMware IPAM SDK Link
+https://developer.vmware.com/web/sdk/1.1.0/vmware-vrealize-automation-third-party-ipam-sdk/
+
+# vRA VMware IPAM SDK Documentation
+https://docs.vmware.com/en/VMware-Cloud-services/1.0/ipam_integration_contract_reqs.pdf

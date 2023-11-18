@@ -1,0 +1,19 @@
+---
+name: "@provider.name@"
+description: "@provider.description@"
+version: "@provider.version@"
+
+abxConfig:
+  allocateIPActionId: "@provider.name@_AllocateIP" # Mandatory for IPAM integrations
+  deallocateIPActionId: "@provider.name@_DeallocateIP" # Mandatory for IPAM integrations
+  validateEndpointActionId: "@provider.name@_ValidateEndpoint" # Mandatory for IPAM integrations
+  updateResourceActionId: "@provider.name@_Update" # Comment this line if not implementing Update Record
+  getIPRangesActionId: "@provider.name@_GetIPRanges" # Mandatory for IPAM integrations
+  allocateNetworkActionId: "@provider.name@_AllocateIPRange" # Comment this line if not implementing On-Demand Networks
+  deallocateNetworkActionId: "@provider.name@_DeallocateIPRange" # Comment this line if not implementing On-Demand Networks
+  getIPBlocksActionId: "@provider.name@_GetIPBlocks" # Comment this line if not implementing On-Demand Networks
+
+properties:
+  @supportsAddressSpaces@ 
+  supportsUpdateRecord: @provider.supportsUpdateRecord@
+  supportsOnDemandNetworks: @provider.supportsOnDemandNetworks@

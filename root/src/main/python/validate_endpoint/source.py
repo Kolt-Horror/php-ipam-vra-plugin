@@ -66,14 +66,12 @@ def do_api_key_check(base_url, auth_credentials, cert):
 
 def do_validate_endpoint(self, auth_credentials, cert):
     # Initialize the base PHP IPAM URL to be used for the rest call
-    base_url = f"https://{self.inputs['endpointProperties']['hostname']}/api/{auth_credentials['privateKeyId']}"
+    base_url = f"https://{self.inputs['endpointProperties']['hostName']}/api/{auth_credentials['privateKeyId']}"
 
-    # Validate the API key and return the headers for use in subsequent API calls.
-    headers = do_api_key_check(base_url, auth_credentials, cert)
     # Try to make the rest call to the PHP IPAM API
     try:
         # Validate the API key and return the headers for use in subsequent API calls.
-        headers = do_api_key_check(base_url, auth_credentials, cert)
+        do_api_key_check(base_url, auth_credentials, cert)
 
         # As the API key is valid and the do_api_key_check function will return any errors, we can proceed with returning the authorization message to vRA
         return {

@@ -30,6 +30,8 @@ from vra_ipam_utils.ipam import IPAM
 from vra_ipam_utils.exceptions import InvalidCertificateException
 # Import the logging module to log messages
 import logging
+# Import the make_request function from the VMware vRealize Automation IPAM SDK utilities.
+from vra_ipam_utils.request_handler import RequestHandler
 
 # The handler function is the entry point for the vRA system
 def handler(context, inputs):
@@ -39,47 +41,43 @@ def handler(context, inputs):
 
     return ipam.validate_endpoint()
 
-# The do_api_key_check function is a custom function that has been created to check the API key against the PHP IPAM API
+# Function to validate the API key using the IPAM service.
 def do_api_key_check(base_url, auth_credentials, cert):
-    # Initialize the PHP IPAM URL to be used for the rest call
+    # Construct the URL to check the API key against the IPAM service.
     url = f"{base_url}/user/"
-    
-    # Initialize the headers to be used for the rest call (Token using the api key and content type)
+
+    # Set up the headers for authentication.
     headers = {
         "token": auth_credentials["privateKey"],
         "Content-Type": "application/json"
     }
+    
+    # Initialize the request handler, which will be used to make the API call.
+    request = RequestHandler()
 
-    # Make the get rest call to the PHP IPAM API
-    response = requests.get(url, headers=headers, verify=cert)
+    # Make a GET request to validate the API key.
+    request.make_request("GET", url, headers=headers, verify=cert)
 
-    return response
+    # Log the successful API key check.
+    logging.info("API key check successful")
+
+    # Return the headers for use in subsequent API calls.
+    return headers
 
 def do_validate_endpoint(self, auth_credentials, cert):
-    # Setup the base url to be used for the rest call for the PHP IPAM API
+    # Initialize the base PHP IPAM URL to be used for the rest call
     base_url = f"https://{self.inputs['endpointProperties']['hostName']}/api/{auth_credentials['privateKeyId']}"
 
     # Try to make the rest call to the PHP IPAM API
     try:
-        # Call the do_api_key_check function to get the response from the rest call
-        response = do_api_key_check(base_url, auth_credentials, cert) # Call the do_api_key_check function to get the response from the rest call
+        # Validate the API key and return the headers for use in subsequent API calls.
+        do_api_key_check(base_url, auth_credentials, cert)
 
-        # Perform the necessary checks on the response
-        if response.status_code == 200:
-            # Return the response
-            return {
+        # As the API key is valid and the do_api_key_check function will return any errors, we can proceed with returning the authorization message to vRA
+        return {
                 "message": "Validated successfully",
                 "statusCode": "200"
             }
-        # Else if the response status code is 401, raise an exception
-        elif response.status_code == 401:
-            # Log the error and raise the exception
-            logging.error(f"Invalid credentials error: {str(response.content)}")
-            
-            # Raise an exception
-            raise Exception(f"Invalid credentials error: {str(response.content)}")
-        else:
-            raise Exception(f"Failed to connect: {str(response.content)}")
     # The following except block has been added to handle SSL validation errors
     except SSLError as ssl_error:
         """ In case of SSL validation error, a InvalidCertificateException is raised.

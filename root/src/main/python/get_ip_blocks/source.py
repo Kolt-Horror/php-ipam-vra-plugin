@@ -80,14 +80,9 @@ def do_get_ip_blocks(self, auth_credentials, cert):
 
     # Set the result_ip_blocks variable to the result of the collect_ip_blocks function
     result_ip_blocks = collect_ip_blocks(base_url, headers, cert)
-
-    # Construct the result to be returned to vRA.
-    result = {
-        "ipBlocks": result_ip_blocks
-    }
     
     # Return the result to vRA.
-    return result
+    return result_ip_blocks
 
 # Function that collects IP blocks from the IPAM service.
 def collect_ip_blocks(base_url, headers, cert):
@@ -107,7 +102,9 @@ def collect_ip_blocks(base_url, headers, cert):
     subnets = []
 
     # Initialize the result variable.
-    result = []
+    result = {
+        "ipBlocks": []
+    }
 
     # Log the fact that collection of IP blocks has started.
     logging.info("Collecting ip blocks")
@@ -215,7 +212,7 @@ def collect_ip_blocks(base_url, headers, cert):
                 ipBlock['domain'] = str(non_ip_addresses[0])
         
         # Append the ipBlock variable to the result variable
-        result.append(ipBlock)
+        result["ipBlocks"].append(ipBlock)
 
     # Return the result of all IP blocks.
     return result

@@ -9,16 +9,16 @@
                   "id":"secion_1",
                   "fields":[
                      {
+                        "id":"hostName",
+                        "display":"textField"
+                     },
+                     {
                         "id":"privateKeyId",
                         "display":"textField"
                      },
                      {
                         "id":"privateKey",
                         "display":"passwordField"
-                     },
-                     {
-                        "id":"hostName",
-                        "display":"textField"
                      }
                   ]
                }
@@ -27,29 +27,29 @@
       ]
    },
    "schema":{
-      "privateKeyId":{
-         "type":{
-            "dataType":"string"
-         },
-         "label":"Username",
-         "constraints":{
-            "required":true
-         }
-      },
-      "privateKey":{
-         "label":"Password",
-         "type":{
-            "dataType":"secureString"
-         },
-         "constraints":{
-            "required":true
-         }
-      },
       "hostName":{
          "type":{
             "dataType":"string"
          },
          "label":"Hostname",
+         "constraints":{
+            "required":true
+         }
+      },
+      "privateKeyId":{
+         "type":{
+            "dataType":"string"
+         },
+         "label":"API Key Name",
+         "constraints":{
+            "required":true
+         }
+      },
+      "privateKey":{
+         "label":"API Key Secret",
+         "type":{
+            "dataType":"secureString"
+         },
          "constraints":{
             "required":true
          }

@@ -81,13 +81,8 @@ def do_get_ip_ranges(self, auth_credentials, cert):
     # Set the result ranges and next page token by calling the collect_ranges function
     result_ranges = collect_ranges(base_url, headers, cert)
 
-    # Construct the result object to be returned to vRA.
-    result = {
-        "ipRanges": result_ranges
-    }
-
     # Return the result object to vRA.
-    return result
+    return result_ranges
 
 # Function that collects IP ranges from the IPAM service.
 def collect_ranges(base_url, headers, cert):
@@ -106,8 +101,8 @@ def collect_ranges(base_url, headers, cert):
     # Initialize the subnets array
     subnets = []
 
-    # Initialize the result array
-    result = []
+    # Initialize the ipRanges array
+    ipRanges = []
 
     # Log the start of the IP range collection.
     logging.info("Collecting ranges")
@@ -156,9 +151,7 @@ def collect_ranges(base_url, headers, cert):
             "startIPAddress": str(subnet['calculation']['Min host IP']),
             "endIPAddress": str(subnet['calculation']['Max host IP']),
             "ipVersion": subnet['calculation']['Type'],
-            "subnetPrefixLength": int(subnet['calculation']['Subnet bitmask']),
-            "tags": [],
-            "properties": {}
+            "subnetPrefixLength": int(subnet['calculation']['Subnet bitmask'])
         }
 
         # If the subnet is linked to a section
@@ -217,7 +210,10 @@ def collect_ranges(base_url, headers, cert):
                 ipRanges['domain'] = str(non_ip_addresses[0])
         
         # Append the ipRanges variable to the result variable
-        result.append(ipRanges)
+        ipRanges.append(ipRanges)
+
+    # Wrap the ipRanges variable in a dictionary and set the key as "ipRanges"
+    result = {"ipRanges": ipRanges}
     
     # Return the result.
     return result

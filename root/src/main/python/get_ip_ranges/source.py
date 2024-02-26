@@ -144,8 +144,8 @@ def collect_ranges(base_url, headers, cert):
 
     # Loop through each subnet within the subnets variable to create a dictionary variable
     for subnet in subnets:
-        # Initialize the ipRanges dictionary
-        ipRanges = {
+        # Initialize the ipRange dictionary
+        ipRange = {
             "id": str(subnet['id']),
             "name": str(subnet['subnet']),
             "startIPAddress": str(subnet['calculation']['Min host IP']),
@@ -163,17 +163,17 @@ def collect_ranges(base_url, headers, cert):
             response = request.make_request("GET", url, headers=headers, verify=cert)
 
             # Set the addressSpaceId with the name of the section that the subnet is linked to
-            ipRanges["addressSpaceId"] = str(response['data']['name'])
+            ipRange["addressSpaceId"] = str(response['data']['name'])
 
         # If description key exists within the subnet variable
         if 'description' in subnet:
             # Set the description key with the subnet description
-            ipRanges['description'] = str(subnet['description'])
+            ipRange['description'] = str(subnet['description'])
 
-        # If gateway key exisits then set the gatewayAddress key for the ipRanges variable
+        # If gateway key exisits then set the gatewayAddress key for the ipRange variable
         if 'gateway' in subnet:
             # Set the gatewayAddress key with the subnet gateway IP address
-            ipRanges['gatewayAddress'] = str(subnet['gateway']['ip_addr'])
+            ipRange['gatewayAddress'] = str(subnet['gateway']['ip_addr'])
 
         # If nameservers key exisits within the subnet variable
         if 'nameservers' in subnet:
@@ -198,19 +198,19 @@ def collect_ranges(base_url, headers, cert):
                     # Append the value to the non_ip_addresses variable
                     non_ip_addresses.append(str(value))
 
-            # Set the dnsServerAddresses list <string> key for the ipRanges variable
-            ipRanges['dnsServerAddresses'] = ip_addresses
+            # Set the dnsServerAddresses list <string> key for the ipRange variable
+            ipRange['dnsServerAddresses'] = ip_addresses
 
             # If non ip addresses exist
             if non_ip_addresses:
-                # Set the dnsSearchDomains list <string> key for the ipRanges variable
-                ipRanges['dnsSearchDomains'] = non_ip_addresses
+                # Set the dnsSearchDomains list <string> key for the ipRange variable
+                ipRange['dnsSearchDomains'] = non_ip_addresses
 
-                # Set the domain key for the ipRanges variable, as the first non-IP address
-                ipRanges['domain'] = str(non_ip_addresses[0])
+                # Set the domain key for the ipRange variable, as the first non-IP address
+                ipRange['domain'] = str(non_ip_addresses[0])
         
-        # Append the ipRanges variable to the result variable
-        ipRanges.append(ipRanges)
+        # Append the ipRange variable to the result variable
+        ipRanges.append(ipRange)
 
     # Wrap the ipRanges variable in a dictionary and set the key as "ipRanges"
     result = {"ipRanges": ipRanges}

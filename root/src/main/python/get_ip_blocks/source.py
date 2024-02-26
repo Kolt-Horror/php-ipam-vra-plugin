@@ -211,7 +211,7 @@ def collect_ip_blocks(base_url, headers, cert):
         ipBlocks.append(ipBlock)
 
         # Wrap the ipBlocks list within a dictoinary under the key "ipBlocks"
-        result = {"ipBlocks": result}
+        result = {"ipBlocks": ipBlocks}
 
     # Return the result of all IP blocks.
     return result

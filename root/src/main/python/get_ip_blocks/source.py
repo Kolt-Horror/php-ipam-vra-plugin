@@ -210,8 +210,8 @@ def collect_ip_blocks(base_url, headers, cert):
         # Append the ipBlock variable to the result variable
         ipBlocks.append(ipBlock)
 
-        # Wrap the ipBlocks list within a dictoinary under the key "ipBlocks"
-        result = {"ipBlocks": ipBlocks}
+    # Wrap the ipBlocks list within a dictoinary under the key "ipBlocks"
+    result = {"ipBlocks": ipBlocks}
 
     # Return the result of all IP blocks.
     return result

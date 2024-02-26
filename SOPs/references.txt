@@ -3,3 +3,6 @@ https://developer.vmware.com/web/sdk/1.1.0/vmware-vrealize-automation-third-part
 
 # vRA VMware IPAM SDK Documentation
 https://docs.vmware.com/en/VMware-Cloud-services/1.0/ipam_integration_contract_reqs.pdf
+
+# New VMware Site for Provider-specific IPAM integration package for Aria automation
+https://docs.vmware.com/en/VMware-Aria-Automation/all/SDK-create-external-IPAM-integration/GUID-7EFD97E6-EA0B-43EF-B6A5-7EB8A7D660D7.html#entity-getiprangesresponse--providerresponsebase-8

@@ -77,6 +77,8 @@ import ipaddress
 from vra_ipam_utils.request_handler import RequestHandler
 # Import the re module to be used for regex
 import re
+# Import the json module to be used for json parsing
+import json
 
 # Boiler plate function, also initial function that is called by vRA
 def handler(context, inputs):
@@ -183,6 +185,9 @@ def allocate_in_range(range_id, resource, allocation, base_url, headers, cert):
         'owner': str(resource["owner"]),
         'note': str('vRA deployment')
     }
+
+    # Convert the payload to a JSON string
+    payload = json.dumps(payload)
 
     # Initialize the PHP IPAM URL to be used for the rest call
     url = f"{base_url}/addresses/first_free/{str(range_id)}/"

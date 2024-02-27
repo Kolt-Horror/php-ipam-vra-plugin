@@ -63,6 +63,8 @@ from vra_ipam_utils.ipam import IPAM
 import logging
 # Import the make_request function from the VMware vRealize Automation IPAM SDK utilities.
 from vra_ipam_utils.request_handler import RequestHandler
+# Import the json library to be used for JSON parsing
+import json
 
 # Boiler plate function, also initial function that is called by vRA
 def handler(context, inputs):
@@ -179,6 +181,9 @@ def update(resource, update_record, base_url, headers, cert):
         payload = {
             "mac": str(update_record["macAddress"])
         }
+
+        # Convert the payload to a JSON string
+        payload = json.dumps(payload)
 
         # Make a PATCH request to update the record
         request.make_request("PATCH", url, headers=headers, data=payload, verify=cert)

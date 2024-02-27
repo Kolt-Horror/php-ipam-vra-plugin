@@ -70,6 +70,8 @@ import logging
 from vra_ipam_utils.request_handler import RequestHandler
 # Import the re module to be used for regex
 import re
+# Import the json module to be used for json manipulation
+import json
 
 # Boiler plate function, also initial function that is called by vRA
 def handler(context, inputs):
@@ -200,6 +202,9 @@ def allocate_in_ip_block(ip_block_id, resource, allocation, base_url, headers, c
     # Set the url to be used for the creation of a child subnet
     url = f"{base_url}/subnets/{str(ip_block_id)}/first_subnet/{str(target_subnet_mask)}/"
 
+    # Convert the createChildSubnetPayload into a JSON string
+    createChildSubnetPayload = json.dumps(createChildSubnetPayload)
+
     # Make a POST request to create a child subnet of the IP block.
     createdSubnetResponse = request.make_request("POST", url, headers=headers, verify=cert, data=createChildSubnetPayload)
 
@@ -211,6 +216,9 @@ def allocate_in_ip_block(ip_block_id, resource, allocation, base_url, headers, c
         # Set the url to be used for the creation of the gateway IP address
         url = f"{base_url}/addresses/first_free/{str(createdSubnetResponse['id'])}/"
 
+        # Convert the createGatewayIPAddressPayload into a JSON string
+        createGatewayIPAddressPayload = json.dumps(createGatewayIPAddressPayload)
+        
         # Make a POST request to create the gateway IP address.
         createdGatewayIPAddressResponse = request.make_request("POST", url, headers=headers, verify=cert, data=createGatewayIPAddressPayload)
     else:

@@ -157,31 +157,35 @@ def allocate(resource, allocation, base_url, headers, cert):
     # Initialize the last error variable
     last_error = None
 
+    # Initialize result array
+    result = []
+
     # Loop through each range in the allocation
     for range_id in allocation["ipRangeIds"]:
         # Log that the allocation is being attempted
         logging.info(f"Allocating from range {range_id}")
         try:
-            # Call the allocate_in_range function to allocate an IP address and return the result
-            return allocate_in_range(range_id, resource, allocation, base_url, headers, cert)
+            # Call the allocate_in_range function to allocate an IP address and append the result to the result list
+            result.append(allocate_in_range(range_id, resource, allocation, base_url, headers, cert))
         except Exception as e:
             # Initialize the last error variable to the exception that occurred
             last_error = e
 
             # Log that the allocation failed
             logging.error(f"Failed to allocate from range {range_id}: {str(e)}")
-    # Log as an error that there are no more ranges to allocate from, as the function to have returned within the try block
-    logging.error("No more ranges. Raising last error")
-
-    # Raise the last error that occurred
-    raise last_error
+    # If the result list is empty
+    if not result:
+        # Raise the last error that occurred
+        raise last_error
+    else:
+        # Return the result list
+        return result
 
 # Function that is called by the allocate function to allocate an IP address
 def allocate_in_range(range_id, resource, allocation, base_url, headers, cert):
     # Initialize the payload to be used for the rest call
     payload = {
         'hostname': str(resource["name"]),
-        'description': str(resource["description"]),
         'owner': str(resource["owner"]),
         'note': str('vRA deployment')
     }
@@ -209,10 +213,10 @@ def allocate_in_range(range_id, resource, allocation, base_url, headers, cert):
     # Get the IP address version
     ipVersion = ipaddress.ip_address(response['data']).version
 
-    # Currently result holds the mandatory properties needed by vRA
-    result = {
-        "ipAllocationId": str(allocation["id"]),
-        "ipAddresses": [str(response['data'])],
+    # Currently ipAddressResult holds the mandatory properties needed by vRA
+    ipAddressResult = {
+        "ipAllocationId": str(response["id"]),
+        "ipAddresses": [str(response["data"])],
         "ipRangeId": str(range_id),
         "ipVersion": f"IPv{str(ipVersion)}"
     }
@@ -226,13 +230,13 @@ def allocate_in_range(range_id, resource, allocation, base_url, headers, cert):
     # Set the subnet response data to the subnetResponseData variable
     subnetResponse = subnetResponse['data']
 
-    # Set the subnet prefix length key for the result variable
-    result["subnetPrefixLength"] = int(subnetResponse['calculation']['Subnet bitmask'])
+    # Set the subnet prefix length key for the ipAddressResult variable
+    ipAddressResult["subnetPrefixLength"] = int(subnetResponse['calculation']['Subnet bitmask'])
 
     # If subnetResponseData has a key called gateway
     if 'gateway' in subnetResponse:
-        # Add the gateway to the result
-        result["gatewayAddresses"] = [str(subnetResponse['gateway']['ip_addr'])]
+        # Add the gateway to the ipAddressResult
+        ipAddressResult["gatewayAddresses"] = [str(subnetResponse['gateway']['ip_addr'])]
     
     # If subnetResponseData has a key called nameservers
     if 'nameservers' in subnetResponse:
@@ -257,19 +261,19 @@ def allocate_in_range(range_id, resource, allocation, base_url, headers, cert):
                 # Append the value to the non_ip_addresses variable
                 non_ip_addresses.append(str(value))
 
-        # Set the dnsServerAddresses list <string> key for the result variable
-        result['dnsServerAddresses'] = ip_addresses
+        # Set the dnsServerAddresses list <string> key for the ipAddressResult variable
+        ipAddressResult['dnsServerAddresses'] = ip_addresses
 
         # If non ip addresses exist
         if non_ip_addresses:
-            # Set the dnsSearchDomains list <string> key for the result variable
-            result['dnsSearchDomains'] = non_ip_addresses
+            # Set the dnsSearchDomains list <string> key for the ipAddressResult variable
+            ipAddressResult['dnsSearchDomains'] = non_ip_addresses
 
-            # Set the domain key for the result variable, as the first non-IP address
-            result['domain'] = str(non_ip_addresses[0])
+            # Set the domain key for the ipAddressResult variable, as the first non-IP address
+            ipAddressResult['domain'] = str(non_ip_addresses[0])
 
-    # Return the allocation result payload for vRA to use
-    return result
+    # Return the allocation ipAddressResult payload for vRA to use
+    return ipAddressResult
 
 # Rollback any previously allocated addresses in case this allocation request contains multiple ones and failed in the middle
 def rollback(allocation_result, base_url, headers, cert):
@@ -282,7 +286,7 @@ def rollback(allocation_result, base_url, headers, cert):
         logging.info(f"Rolling back allocation {str(allocation)}")
         
         # Set the rollback url with the allocated IP address ID 
-        rollback_url = f"{base_url}/addresses/{allocation['ipAllocationId']}/"
+        rollback_url = f"{base_url}/addresses/{allocation['ipAllocationId']}/{allocation['ipRangeId']}"
         
         # Perform the delete rest call to the PHP IPAM API
         request.make_request("DELETE", rollback_url, headers=headers, verify=cert)

@@ -73,7 +73,7 @@ def do_api_key_check(base_url, auth_credentials, cert):
 # Function that orchestrates the collection of IP blocks from the IPAM service.
 def do_get_ip_blocks(self, auth_credentials, cert):
     # Initialize the base PHP IPAM URL to be used for the rest call
-    base_url = f"https://{self.inputs['endpointProperties']['hostname']}/api/{auth_credentials['privateKeyId']}"
+    base_url = f"https://{self.inputs['endpoint']['endpointProperties']['hostName']}/api/{auth_credentials['privateKeyId']}"
 
     # Validate the API key and return the headers for use in subsequent API calls.
     headers = do_api_key_check(base_url, auth_credentials, cert)
@@ -81,13 +81,8 @@ def do_get_ip_blocks(self, auth_credentials, cert):
     # Set the result_ip_blocks variable to the result of the collect_ip_blocks function
     result_ip_blocks = collect_ip_blocks(base_url, headers, cert)
 
-    # Construct the result to be returned to vRA.
-    result = {
-        "ipBlocks": result_ip_blocks
-    }
-    
     # Return the result to vRA.
-    return result
+    return result_ip_blocks
 
 # Function that collects IP blocks from the IPAM service.
 def collect_ip_blocks(base_url, headers, cert):
@@ -106,8 +101,8 @@ def collect_ip_blocks(base_url, headers, cert):
     # Initialize the subnets variable.
     subnets = []
 
-    # Initialize the result variable.
-    result = []
+    # Initialize the ipBlocks variable.
+    ipBlocks = []
 
     # Log the fact that collection of IP blocks has started.
     logging.info("Collecting ip blocks")
@@ -154,9 +149,7 @@ def collect_ip_blocks(base_url, headers, cert):
             "id": str(subnet['id']),
             "name": str(subnet['subnet']),
             "ipBlockCIDR": str(f"{subnet['calculation']['Network']}/{subnet['calculation']['Subnet bitmask']}"),
-            "ipVersion": subnet['calculation']['Type'],
-            "properties": {},
-            "tags": []
+            "ipVersion": str(subnet['calculation']['Type'])
         }
 
         # If the subnet is linked to a section
@@ -167,8 +160,8 @@ def collect_ip_blocks(base_url, headers, cert):
             # Make a GET request to get the section information
             response = request.make_request("GET", url, headers=headers, verify=cert)
 
-            # Set the addressSpaceId with the name of the section that the subnet is linked to
-            ipBlock["addressSpaceId"] = str(response['data']['name'])
+            # Set the addressSpace with the name of the section that the subnet is linked to
+            ipBlock["addressSpace"] = str(response['data']['name'])
 
         # If description key exists within the subnet variable
         if 'description' in subnet:
@@ -213,9 +206,12 @@ def collect_ip_blocks(base_url, headers, cert):
 
                 # Set the domain key for the ipBlock variable, as the first non-IP address
                 ipBlock['domain'] = str(non_ip_addresses[0])
-        
+
         # Append the ipBlock variable to the result variable
-        result.append(ipBlock)
+        ipBlocks.append(ipBlock)
+
+    # Wrap the ipBlocks list within a dictoinary under the key "ipBlocks"
+    result = {"ipBlocks": ipBlocks}
 
     # Return the result of all IP blocks.
     return result

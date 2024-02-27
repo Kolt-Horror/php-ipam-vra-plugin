@@ -16,10 +16,11 @@ Before using this plugin, ensure you have the following installed:
 - Docker
 
 ## Build
+To build the PHP IPAM vRA Plugin from scratch, follow these steps:
 1. Clone the repository to your local machine.
-2. Navigate to the root folder and build the VMware IPAM SDK using Maven:
+2. Navigate to the folder called root and build the VMware IPAM SDK using Maven:
     - `mvn package -PcollectDependencies`
-3. Access the successfully built plugin in the `.\target\PHP-IPAM.zip` folder within the root folder.
+3. Access the successfully built plugin in the `.\target\PHP-IPAM.zip` folder within the folder called root.
 
 ## Configuration
 Refer to the SOPs folder for detailed instructions on configuring:
@@ -27,8 +28,9 @@ Refer to the SOPs folder for detailed instructions on configuring:
         - Maven
         - Java
 This setup is essential for building and maintaining the VMware IPAM SDK.
+Within the SOPs folder you will also find the references.txt file with has links tot he VMware IPAM SDK documentation.
 
-For configuration of the PHP IPAM vRA Plugin, refer to the `.\root\README.md` file.
+For configuration of the PHP IPAM vRA Plugin, refer to the `.\root\README.md` file which is provided by the base VMware SDK.
 
 ## Usage
 Once installed and configured, the PHP IPAM vRA Plugin allows for seamless IP address management from within the vRA environment.

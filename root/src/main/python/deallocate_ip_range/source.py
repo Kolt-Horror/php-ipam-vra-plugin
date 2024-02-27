@@ -83,7 +83,7 @@ def do_api_key_check(base_url, auth_credentials, cert):
 # Function that orchestrates the deallocation of an IP Range.
 def do_deallocate_ip_range(self, auth_credentials, cert):
     # Initialize the base PHP IPAM URL to be used for the rest call
-    base_url = f"https://{self.inputs['endpointProperties']['hostname']}/api/{auth_credentials['privateKeyId']}"
+    base_url = f"https://{self.inputs['endpoint']['endpointProperties']['hostName']}/api/{auth_credentials['privateKeyId']}"
 
     # Validate the API key and return the headers for use in subsequent API calls.
     headers = do_api_key_check(base_url, auth_credentials, cert)

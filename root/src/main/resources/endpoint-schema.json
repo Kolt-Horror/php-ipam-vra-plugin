@@ -9,27 +9,16 @@
                   "id":"secion_1",
                   "fields":[
                      {
+                        "id":"hostName",
+                        "display":"textField"
+                     },
+                     {
                         "id":"privateKeyId",
                         "display":"textField"
                      },
                      {
                         "id":"privateKey",
                         "display":"passwordField"
-                     },
-                     {
-                        "id":"hostName",
-                        "display":"textField"
-                     },
-                     {
-                        "id":"properties",
-                        "display":"datagrid",
-                        "state":{
-                           "visible":true,
-                           "read-only":false,
-                           "hidden-fields":[
-
-                           ]
-                        }
                      }
                   ]
                }
@@ -38,24 +27,6 @@
       ]
    },
    "schema":{
-      "privateKeyId":{
-         "type":{
-            "dataType":"string"
-         },
-         "label":"Username",
-         "constraints":{
-            "required":true
-         }
-      },
-      "privateKey":{
-         "label":"Password",
-         "type":{
-            "dataType":"secureString"
-         },
-         "constraints":{
-            "required":true
-         }
-      },
       "hostName":{
          "type":{
             "dataType":"string"
@@ -65,42 +36,22 @@
             "required":true
          }
       },
-      "properties":{
+      "privateKeyId":{
          "type":{
-            "dataType":"complex",
-            "isMultiple":true,
-            "fields":[
-               {
-                  "label":"Key",
-                  "id":"prop_key",
-                  "type":{
-                     "dataType":"string"
-                  },
-                  "constraints":{
-
-                  }
-               },
-               {
-                  "label":"Value",
-                  "id":"prop_value",
-                  "type":{
-                     "dataType":"string"
-                  },
-                  "constraints":{
-
-                  }
-               }
-            ]
+            "dataType":"string"
          },
-         "placeholder":"",
-         "default":[
-            {
-               "prop_key":"SampleIPAM.IPAM.fooConfigProperty",
-               "prop_value":"bar"
-            }
-         ],
+         "label":"API Key Name",
          "constraints":{
-
+            "required":true
+         }
+      },
+      "privateKey":{
+         "label":"API Key Secret",
+         "type":{
+            "dataType":"secureString"
+         },
+         "constraints":{
+            "required":true
          }
       }
    },

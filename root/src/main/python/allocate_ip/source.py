@@ -213,12 +213,16 @@ def allocate_in_range(range_id, resource, allocation, base_url, headers, cert):
     # Get the IP address version
     ipVersion = ipaddress.ip_address(response['data']).version
 
+    ipAllocationId = str(response["id"])
+    ipAddresses = [response["data"]]
+    ipRangeId = range_id
+
     # Currently ipAddressResult holds the mandatory properties needed by vRA
     ipAddressResult = {
-        "ipAllocationId": str(response["id"]),
-        "ipAddresses": [str(response["data"])],
-        "ipRangeId": str(range_id),
-        "ipVersion": f"IPv{str(ipVersion)}"
+        "ipAllocationId": ipAllocationId,
+        "ipAddresses": ipAddresses,
+        "ipRangeId": ipRangeId,
+        "ipVersion": ipVersion
     }
 
     # Set the url to get subnet details
@@ -271,7 +275,7 @@ def allocate_in_range(range_id, resource, allocation, base_url, headers, cert):
 
             # Set the domain key for the ipAddressResult variable, as the first non-IP address
             ipAddressResult['domain'] = str(non_ip_addresses[0])
-
+    
     # Return the allocation ipAddressResult payload for vRA to use
     return ipAddressResult
 

@@ -157,29 +157,22 @@ def allocate(resource, allocation, base_url, headers, cert):
     # Initialize the last error variable
     last_error = None
 
-    # Initialize result array
-    result = []
-
     # Loop through each range in the allocation
     for range_id in allocation["ipRangeIds"]:
         # Log that the allocation is being attempted
         logging.info(f"Allocating from range {range_id}")
         try:
             # Call the allocate_in_range function to allocate an IP address and append the result to the result list
-            result.append(allocate_in_range(range_id, resource, allocation, base_url, headers, cert))
+            return allocate_in_range(range_id, resource, allocation, base_url, headers, cert)
         except Exception as e:
             # Initialize the last error variable to the exception that occurred
             last_error = e
 
             # Log that the allocation failed
             logging.error(f"Failed to allocate from range {range_id}: {str(e)}")
-    # If the result list is empty
-    if not result:
-        # Raise the last error that occurred
-        raise last_error
-    else:
-        # Return the result list
-        return result
+
+            # Raise the last error that occurred
+            raise last_error
 
 # Function that is called by the allocate function to allocate an IP address
 def allocate_in_range(range_id, resource, allocation, base_url, headers, cert):

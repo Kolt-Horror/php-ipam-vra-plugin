@@ -189,24 +189,69 @@ def allocate(resource, allocation, base_url, headers, cert):
 
 # Function that is called by the allocate function to allocate an IP address
 def allocate_in_range(range_id, resource, allocation, base_url, headers, cert):
-    # Initialize the payload to be used for the rest call
-    payload = {
-        'hostname': str(resource["name"]),
-        'owner': str(resource["owner"]),
-        'note': str('vRA deployment')
-    }
-
-    # Convert the payload to a JSON string
-    payload = json.dumps(payload)
-
-    # Initialize the PHP IPAM URL to be used for the rest call
-    url = f"{base_url}/addresses/first_free/{str(range_id)}/"
-
     # Initialize the request handler, which will be used to make the API call.
     request = RequestHandler()
 
-    # Perform the post rest call to the PHP IPAM API
-    response = request.make_request("POST", url, headers=headers, data=payload, verify=cert)
+    # Process to determine if IP address is statically allocated or not
+    if "start" in allocation:
+        # Log that the IP address is to be statically allocated
+        logging.info(f"IP address {allocation['start']} to be statically allocated from range {range_id}")
+
+        # Check if the IP address is already allocated
+        url = f"{base_url}/addresses/{allocation['start']}/{range_id}/"
+
+        # Perform the get rest call to the PHP IPAM API
+        response = request.make_request("GET", url, headers=headers, verify=cert)
+
+        # If the response success key contains a value of false, then the IP address is not allocated
+        if response['success'] is False:
+            # Create IP address allocation payload
+            payload = {
+                "subnetId": range_id,
+                "ip": allocation['start'],
+                "hostname": str(resource["name"]),
+                "owner": str(resource["owner"]),
+                "note": str("vRA deployment")
+            }
+
+            # If "description" is in the resource
+            if "description" in resource:
+                # Add the description to the payload
+                payload["description"] = str(resource["description"])
+            
+            # Convert the payload to a JSON string
+            payload = json.dumps(payload)
+
+            # Create the URL to be used for the rest call
+            url = f"{base_url}/addresses/"
+
+            # Perform the post rest call to the PHP IPAM API
+            response = request.make_request("POST", url, headers=headers, data=payload, verify=cert)
+        else:
+            # Log that the IP address was already allocated
+            logging.info(f"IP address {allocation['start']} already allocated from range {range_id}")
+
+            # Raise an exception with the error message
+            raise Exception(f"IP address {allocation['start']} already allocated from range {range_id}")
+    else:
+        # Initialize the payload to be used for the rest call
+        payload = {
+            'hostname': str(resource["name"]),
+            'owner': str(resource["owner"]),
+            'note': str('vRA deployment')
+        }
+
+        if "description" in resource:
+            payload["description"] = str(resource["description"])
+
+        # Convert the payload to a JSON string
+        payload = json.dumps(payload)
+
+        # Initialize the PHP IPAM URL to be used for the rest call
+        url = f"{base_url}/addresses/first_free/{str(range_id)}/"
+
+        # Perform the post rest call to the PHP IPAM API
+        response = request.make_request("POST", url, headers=headers, data=payload, verify=cert)
 
     # Check the response code to see if the IP address was allocated successfully
     if response['success'] is True:

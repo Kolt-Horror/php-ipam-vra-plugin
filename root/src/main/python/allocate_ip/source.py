@@ -192,6 +192,10 @@ def allocate_in_range(range_id, resource, allocation, base_url, headers, cert):
     # Initialize the request handler, which will be used to make the API call.
     request = RequestHandler()
 
+    response = None
+
+    ipAddress = None
+
     # Process to determine if IP address is statically allocated or not
     if "start" in allocation:
         # Log that the IP address is to be statically allocated
@@ -200,15 +204,23 @@ def allocate_in_range(range_id, resource, allocation, base_url, headers, cert):
         # Check if the IP address is already allocated
         url = f"{base_url}/addresses/{allocation['start']}/{range_id}/"
 
-        # Perform the get rest call to the PHP IPAM API
-        response = request.make_request("GET", url, headers=headers, verify=cert)
+        try:
+            # Perform the get rest call to the PHP IPAM API
+            response = request.make_request("GET", url, headers=headers, verify=cert)
 
-        # If the response success key contains a value of false, then the IP address is not allocated
-        if response['success'] is False:
+            # Log that the IP address was already allocated
+            logging.info(f"IP address {allocation['start']} already allocated from range {range_id}")
+
+            # Raise an exception with the error message
+            raise Exception(f"IP address {allocation['start']} already allocated from range {range_id}")
+        except Exception as e:
+            # Log that the IP address was not found
+            logging.info(f"IP address {allocation['start']} not found in range {range_id}")
+
             # Create IP address allocation payload
             payload = {
                 "subnetId": range_id,
-                "ip": allocation['start'],
+                "ip": allocation["start"],
                 "hostname": str(resource["name"]),
                 "owner": str(resource["owner"]),
                 "note": str("vRA deployment")
@@ -227,18 +239,15 @@ def allocate_in_range(range_id, resource, allocation, base_url, headers, cert):
 
             # Perform the post rest call to the PHP IPAM API
             response = request.make_request("POST", url, headers=headers, data=payload, verify=cert)
-        else:
-            # Log that the IP address was already allocated
-            logging.info(f"IP address {allocation['start']} already allocated from range {range_id}")
 
-            # Raise an exception with the error message
-            raise Exception(f"IP address {allocation['start']} already allocated from range {range_id}")
+            # Set the IP address to the statically allocated IP address
+            ipAddress = allocation["start"]
     else:
         # Initialize the payload to be used for the rest call
         payload = {
-            'hostname': str(resource["name"]),
-            'owner': str(resource["owner"]),
-            'note': str('vRA deployment')
+            "hostname": str(resource["name"]),
+            "owner": str(resource["owner"]),
+            "note": str("vRA deployment")
         }
 
         if "description" in resource:
@@ -253,21 +262,30 @@ def allocate_in_range(range_id, resource, allocation, base_url, headers, cert):
         # Perform the post rest call to the PHP IPAM API
         response = request.make_request("POST", url, headers=headers, data=payload, verify=cert)
 
+        # Set the IP address to the dynamically allocated IP address
+        ipAddress = response['data']
+
+    # Perform IP Address check
+    url = f"{base_url}/addresses/{ipAddress}/{range_id}/"
+
+    # Perform the get rest call to the PHP IPAM API
+    response = request.make_request("GET", url, headers=headers, verify=cert)
+
     # Check the response code to see if the IP address was allocated successfully
-    if response['success'] is True:
+    if response["success"] is True:
         # Log that the IP address was allocated successfully
-        logging.info(f"IP address {response['data']} successfully allocated from range {range_id}")
+        logging.info(f"IP address {response['data']['ip']} successfully allocated from range {range_id}")
     else:
         # IF false then raise an exception with the error message
         raise Exception(f"Failed to allocate IP address from range {range_id}: {response['message']}")    
 
     # Get the IP address version
-    ipVersion = ipaddress.ip_address(response['data']).version
+    ipVersion = ipaddress.ip_address(response["data"]["ip"]).version
 
     # Currently result holds the mandatory properties needed by vRA
     result = {
         "ipAllocationId": allocation["id"],
-        "ipAddresses": [response["data"]],
+        "ipAddresses": [response["data"]["ip"]],
         "ipRangeId": range_id,
         "ipVersion": f"IPv{str(ipVersion)}"
     }
@@ -279,18 +297,18 @@ def allocate_in_range(range_id, resource, allocation, base_url, headers, cert):
     subnetResponse = request.make_request("GET", url, headers=headers, verify=cert)
 
     # Set the subnet response data to the subnetResponseData variable
-    subnetResponse = subnetResponse['data']
+    subnetResponse = subnetResponse["data"]
 
     # Set the subnet prefix length key for the result variable
-    result["subnetPrefixLength"] = int(subnetResponse['calculation']['Subnet bitmask'])
+    result["subnetPrefixLength"] = int(subnetResponse["calculation"]["Subnet bitmask"])
 
     # If subnetResponseData has a key called gateway
-    if 'gateway' in subnetResponse:
+    if "gateway" in subnetResponse:
         # Add the gateway to the result
-        result["gatewayAddresses"] = [str(subnetResponse['gateway']['ip_addr'])]
+        result["gatewayAddresses"] = [str(subnetResponse["gateway"]["ip_addr"])]
     
     # If subnetResponseData has a key called nameservers
-    if 'nameservers' in subnetResponse:
+    if "nameservers" in subnetResponse:
         # Split the "namesrv1" string into an array using semicolon as the delimiter
         namesrv1_values = subnetResponse["nameservers"]["namesrv1"].split(";")
 
@@ -313,15 +331,15 @@ def allocate_in_range(range_id, resource, allocation, base_url, headers, cert):
                 non_ip_addresses.append(str(value))
 
         # Set the dnsServerAddresses list <string> key for the result variable
-        result['dnsServerAddresses'] = ip_addresses
+        result["dnsServerAddresses"] = ip_addresses
 
         # If non ip addresses exist
         if non_ip_addresses:
             # Set the dnsSearchDomains list <string> key for the result variable
-            result['dnsSearchDomains'] = non_ip_addresses
+            result["dnsSearchDomains"] = non_ip_addresses
 
             # Set the domain key for the result variable, as the first non-IP address
-            result['domain'] = str(non_ip_addresses[0])
+            result["domain"] = str(non_ip_addresses[0])
 
     # Return the allocation result payload for vRA to use
     return result

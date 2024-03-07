@@ -157,31 +157,41 @@ def allocate(resource, allocation, base_url, headers, cert):
     # Initialize the last error variable
     last_error = None
 
+    # Initialize the allocate result variable
+    allocateResult = None
+
     # Loop through each range in the allocation
     for range_id in allocation["ipRangeIds"]:
         # Log that the allocation is being attempted
         logging.info(f"Allocating from range {range_id}")
         try:
-            # Call the allocate_in_range function to allocate an IP address and return the result
-            return allocate_in_range(range_id, resource, allocation, base_url, headers, cert)
+            # Call the allocate_in_range function to allocate an IP address and append the result to the result list
+            allocateResult = allocate_in_range(range_id, resource, allocation, base_url, headers, cert)
+
+            # If the allocation was successful
+            if allocateResult:
+                # Break the loop
+                break
         except Exception as e:
             # Initialize the last error variable to the exception that occurred
             last_error = e
 
             # Log that the allocation failed
             logging.error(f"Failed to allocate from range {range_id}: {str(e)}")
-    # Log as an error that there are no more ranges to allocate from, as the function to have returned within the try block
-    logging.error("No more ranges. Raising last error")
 
-    # Raise the last error that occurred
-    raise last_error
+    # If the result list is empty
+    if not allocateResult:
+        # Raise the last error that occurred
+        raise last_error
+    else:
+        # Return the result list
+        return allocateResult
 
 # Function that is called by the allocate function to allocate an IP address
 def allocate_in_range(range_id, resource, allocation, base_url, headers, cert):
     # Initialize the payload to be used for the rest call
     payload = {
         'hostname': str(resource["name"]),
-        'description': str(resource["description"]),
         'owner': str(resource["owner"]),
         'note': str('vRA deployment')
     }
@@ -197,11 +207,11 @@ def allocate_in_range(range_id, resource, allocation, base_url, headers, cert):
 
     # Perform the post rest call to the PHP IPAM API
     response = request.make_request("POST", url, headers=headers, data=payload, verify=cert)
-    
+
     # Check the response code to see if the IP address was allocated successfully
     if response['success'] is True:
         # Log that the IP address was allocated successfully
-        logging.info(f"IP address {response['data']['ip']} successfully allocated from range {range_id}")
+        logging.info(f"IP address {response['data']} successfully allocated from range {range_id}")
     else:
         # IF false then raise an exception with the error message
         raise Exception(f"Failed to allocate IP address from range {range_id}: {response['message']}")    
@@ -211,9 +221,9 @@ def allocate_in_range(range_id, resource, allocation, base_url, headers, cert):
 
     # Currently result holds the mandatory properties needed by vRA
     result = {
-        "ipAllocationId": str(allocation["id"]),
-        "ipAddresses": [str(response['data'])],
-        "ipRangeId": str(range_id),
+        "ipAllocationId": allocation["id"],
+        "ipAddresses": [response["data"]],
+        "ipRangeId": range_id,
         "ipVersion": f"IPv{str(ipVersion)}"
     }
 
@@ -282,7 +292,7 @@ def rollback(allocation_result, base_url, headers, cert):
         logging.info(f"Rolling back allocation {str(allocation)}")
         
         # Set the rollback url with the allocated IP address ID 
-        rollback_url = f"{base_url}/addresses/{allocation['ipAllocationId']}/"
+        rollback_url = f"{base_url}/addresses/{allocation['ipAllocationId']}/{allocation['ipRangeId']}"
         
         # Perform the delete rest call to the PHP IPAM API
         request.make_request("DELETE", rollback_url, headers=headers, verify=cert)

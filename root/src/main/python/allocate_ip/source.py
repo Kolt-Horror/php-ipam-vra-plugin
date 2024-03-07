@@ -157,13 +157,21 @@ def allocate(resource, allocation, base_url, headers, cert):
     # Initialize the last error variable
     last_error = None
 
+    # Initialize the allocate result variable
+    allocateResult = None
+
     # Loop through each range in the allocation
     for range_id in allocation["ipRangeIds"]:
         # Log that the allocation is being attempted
         logging.info(f"Allocating from range {range_id}")
         try:
             # Call the allocate_in_range function to allocate an IP address and append the result to the result list
-            return allocate_in_range(range_id, resource, allocation, base_url, headers, cert)
+            allocateResult = allocate_in_range(range_id, resource, allocation, base_url, headers, cert)
+
+            # If the allocation was successful
+            if allocateResult:
+                # Break the loop
+                break
         except Exception as e:
             # Initialize the last error variable to the exception that occurred
             last_error = e
@@ -171,8 +179,13 @@ def allocate(resource, allocation, base_url, headers, cert):
             # Log that the allocation failed
             logging.error(f"Failed to allocate from range {range_id}: {str(e)}")
 
-    # Raise the last error that occurred
-    raise last_error
+    # If the result list is empty
+    if not allocateResult:
+        # Raise the last error that occurred
+        raise last_error
+    else:
+        # Return the result list
+        return allocateResult
 
 # Function that is called by the allocate function to allocate an IP address
 def allocate_in_range(range_id, resource, allocation, base_url, headers, cert):
@@ -194,11 +207,11 @@ def allocate_in_range(range_id, resource, allocation, base_url, headers, cert):
 
     # Perform the post rest call to the PHP IPAM API
     response = request.make_request("POST", url, headers=headers, data=payload, verify=cert)
-    
+
     # Check the response code to see if the IP address was allocated successfully
     if response['success'] is True:
         # Log that the IP address was allocated successfully
-        logging.info(f"IP address {response['data']['ip']} successfully allocated from range {range_id}")
+        logging.info(f"IP address {response['data']} successfully allocated from range {range_id}")
     else:
         # IF false then raise an exception with the error message
         raise Exception(f"Failed to allocate IP address from range {range_id}: {response['message']}")    
@@ -206,16 +219,12 @@ def allocate_in_range(range_id, resource, allocation, base_url, headers, cert):
     # Get the IP address version
     ipVersion = ipaddress.ip_address(response['data']).version
 
-    ipAllocationId = str(response["id"])
-    ipAddresses = [response["data"]]
-    ipRangeId = range_id
-
-    # Currently ipAddressResult holds the mandatory properties needed by vRA
-    ipAddressResult = {
-        "ipAllocationId": str(ipAllocationId),
-        "ipAddresses": ipAddresses,
-        "ipRangeId": str(ipRangeId),
-        "ipVersion": ipVersion
+    # Currently result holds the mandatory properties needed by vRA
+    result = {
+        "ipAllocationId": allocation["id"],
+        "ipAddresses": [response["data"]],
+        "ipRangeId": range_id,
+        "ipVersion": f"IPv{str(ipVersion)}"
     }
 
     # Set the url to get subnet details
@@ -227,13 +236,13 @@ def allocate_in_range(range_id, resource, allocation, base_url, headers, cert):
     # Set the subnet response data to the subnetResponseData variable
     subnetResponse = subnetResponse['data']
 
-    # Set the subnet prefix length key for the ipAddressResult variable
-    ipAddressResult["subnetPrefixLength"] = int(subnetResponse['calculation']['Subnet bitmask'])
+    # Set the subnet prefix length key for the result variable
+    result["subnetPrefixLength"] = int(subnetResponse['calculation']['Subnet bitmask'])
 
     # If subnetResponseData has a key called gateway
     if 'gateway' in subnetResponse:
-        # Add the gateway to the ipAddressResult
-        ipAddressResult["gatewayAddresses"] = [str(subnetResponse['gateway']['ip_addr'])]
+        # Add the gateway to the result
+        result["gatewayAddresses"] = [str(subnetResponse['gateway']['ip_addr'])]
     
     # If subnetResponseData has a key called nameservers
     if 'nameservers' in subnetResponse:
@@ -258,19 +267,19 @@ def allocate_in_range(range_id, resource, allocation, base_url, headers, cert):
                 # Append the value to the non_ip_addresses variable
                 non_ip_addresses.append(str(value))
 
-        # Set the dnsServerAddresses list <string> key for the ipAddressResult variable
-        ipAddressResult['dnsServerAddresses'] = ip_addresses
+        # Set the dnsServerAddresses list <string> key for the result variable
+        result['dnsServerAddresses'] = ip_addresses
 
         # If non ip addresses exist
         if non_ip_addresses:
-            # Set the dnsSearchDomains list <string> key for the ipAddressResult variable
-            ipAddressResult['dnsSearchDomains'] = non_ip_addresses
+            # Set the dnsSearchDomains list <string> key for the result variable
+            result['dnsSearchDomains'] = non_ip_addresses
 
-            # Set the domain key for the ipAddressResult variable, as the first non-IP address
-            ipAddressResult['domain'] = str(non_ip_addresses[0])
-    
-    # Return the allocation ipAddressResult payload for vRA to use
-    return ipAddressResult
+            # Set the domain key for the result variable, as the first non-IP address
+            result['domain'] = str(non_ip_addresses[0])
+
+    # Return the allocation result payload for vRA to use
+    return result
 
 # Rollback any previously allocated addresses in case this allocation request contains multiple ones and failed in the middle
 def rollback(allocation_result, base_url, headers, cert):

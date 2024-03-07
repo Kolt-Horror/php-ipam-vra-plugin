@@ -171,8 +171,8 @@ def allocate(resource, allocation, base_url, headers, cert):
             # Log that the allocation failed
             logging.error(f"Failed to allocate from range {range_id}: {str(e)}")
 
-            # Raise the last error that occurred
-            raise last_error
+    # Raise the last error that occurred
+    raise last_error
 
 # Function that is called by the allocate function to allocate an IP address
 def allocate_in_range(range_id, resource, allocation, base_url, headers, cert):
@@ -212,9 +212,9 @@ def allocate_in_range(range_id, resource, allocation, base_url, headers, cert):
 
     # Currently ipAddressResult holds the mandatory properties needed by vRA
     ipAddressResult = {
-        "ipAllocationId": ipAllocationId,
+        "ipAllocationId": str(ipAllocationId),
         "ipAddresses": ipAddresses,
-        "ipRangeId": ipRangeId,
+        "ipRangeId": str(ipRangeId),
         "ipVersion": ipVersion
     }
 

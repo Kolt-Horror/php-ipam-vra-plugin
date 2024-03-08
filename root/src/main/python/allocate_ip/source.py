@@ -353,15 +353,29 @@ def rollback(allocation_result, base_url, headers, cert):
     for allocation in reversed(allocation_result):
         # Log that the allocation is being rolled back
         logging.info(f"Rolling back allocation {str(allocation)}")
-        
-        # Set the rollback url with the allocated IP address ID 
-        rollback_url = f"{base_url}/addresses/{allocation['ipAllocationId']}/{allocation['ipRangeId']}"
-        
-        # Perform the delete rest call to the PHP IPAM API
-        request.make_request("DELETE", rollback_url, headers=headers, verify=cert)
 
-        # Log that the allocation was rolled back successfully
-        logging.info(f"Allocation {str(allocation['ipAddresses'])} rolled back successfully")
+        # Check if the IP address that is already allocated has the same hostname as the one that is being rolled back
+        url = f"{base_url}/addresses/{allocation['ipAllocationId']}/{allocation['ipRangeId']}"
+
+        # Perform the get rest call to the PHP IPAM API
+        response = request.make_request("GET", url, headers=headers, verify=cert)
+
+        # If the IP address that is already allocated has the same hostname as the one that is being rolled back
+        if response["data"]["hostname"] != allocation["name"]:
+            # Log that the allocation was not rolled back
+            logging.info(f"Allocation {str(allocation['ipAddresses'])} not rolled back as it has a different hostname")
+
+            # Continue to the next allocation
+            continue
+        else:            
+            # Set the rollback url with the allocated IP address ID 
+            rollback_url = f"{base_url}/addresses/{allocation['ipAllocationId']}/{allocation['ipRangeId']}"
+            
+            # Perform the delete rest call to the PHP IPAM API
+            request.make_request("DELETE", rollback_url, headers=headers, verify=cert)
+
+            # Log that the allocation was rolled back successfully
+            logging.info(f"Allocation {str(allocation['ipAddresses'])} rolled back successfully")
     
     # Return nothing as this is a rollback function, and is expected to succeed
     return

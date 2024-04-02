@@ -10,6 +10,21 @@ conditions of the subcomponent's license, as noted in the LICENSE file.
 """
 
 """
+The deallocate IP uses the Aria Automation passed properties:
+  - IP address
+  - IP addresses subnet ID
+Whilst the Aria Automation system will only know the PHP IPAM information:
+  - NONE
+
+The deallocate IP has links to the following IPAM Actions:
+  - allocate IP
+    - To assign an IP address
+    - Required information for deallocate IP:
+      - IP address
+      - IP addresses subnet ID
+"""
+
+"""
 Example payload:
 
 "inputs": {
@@ -68,85 +83,129 @@ from vra_ipam_utils.request_handler import RequestHandler
 
 # Function that vRA invokes to start the IP deallocation process.
 def handler(context, inputs):
-    # Instantiate the IPAM class with the provided context and inputs for further IPAM operations.
-    ipam = IPAM(context, inputs)
+  # Instantiate the IPAM class with the provided context and inputs for further IPAM operations.
+  ipam = IPAM(context, inputs)
 
-    # Dynamically bind our custom deallocation method to the IPAM class.
-    IPAM.do_deallocate_ip = do_deallocate_ip
+  # Dynamically bind our custom deallocation method to the IPAM class.
+  IPAM.do_deallocate_ip = do_deallocate_ip
 
-    # Invoke the patched deallocation method and return the results.
-    return ipam.deallocate_ip()
+  # Invoke the patched deallocation method and return the results.
+  return ipam.deallocate_ip()
 
 # Function to validate the API key using the IPAM service.
 def do_api_key_check(base_url, auth_credentials, cert):
-    # Construct the URL to check the API key against the IPAM service.
-    url = f"{base_url}/user/"
+  # Construct the URL to check the API key against the IPAM service.
+  url = f"{base_url}/user/"
 
-    # Set up the headers for authentication.
-    headers = {
-        "token": auth_credentials["privateKey"],
-        "Content-Type": "application/json"
-    }
-    
-    # Initialize the request handler, which will be used to make the API call.
-    request = RequestHandler()
+  # Set up the headers for authentication.
+  headers = {
+    "token": auth_credentials["privateKey"],
+    "Content-Type": "application/json"
+  }
+  
+  # Initialize the request handler, which will be used to make the API call.
+  request = RequestHandler()
 
-    # Make a GET request to validate the API key.
-    request.make_request("GET", url, headers=headers, verify=cert)
+  # Make a GET request to validate the API key.
+  request.make_request("GET", url, headers=headers, verify=cert)
 
-    # Log the successful API key check.
-    logging.info("API key check successful")
+  # Log the successful API key check.
+  logging.info("API key check successful")
 
-    # Return the headers for use in subsequent API calls.
-    return headers
+  # Return the headers for use in subsequent API calls.
+  return headers
 
 # Function that orchestrates the deallocation of IPs.
 def do_deallocate_ip(self, auth_credentials, cert):
-    # Construct the base URL for the IPAM API call.
-    base_url = f"https://{self.inputs['endpoint']['endpointProperties']['hostName']}/api/{auth_credentials['privateKeyId']}"
+  # Construct the base URL for the IPAM API call.
+  base_url = f"https://{self.inputs['endpoint']['endpointProperties']['hostName']}/api/{auth_credentials['privateKeyId']}"
 
-    # Validate the API key and return the headers for use in subsequent API calls.
-    headers = do_api_key_check(base_url, auth_credentials, cert)
-    
-    # Initialize the result list.
-    deallocation_result = []
+  # Validate the API key and return the headers for use in subsequent API calls.
+  headers = do_api_key_check(base_url, auth_credentials, cert)
+  
+  # Initialize the result list.
+  deallocation_result = []
 
-    # Iterate through the list of IPs to deallocate.
-    for deallocation in self.inputs["ipDeallocations"]:
-        # Attempt to deallocate the IP address.
-        result = deallocate(self.inputs["resourceInfo"], deallocation, base_url, headers, cert)
+  # Iterate through the list of IPs to deallocate.
+  for deallocation in self.inputs["ipDeallocations"]:
+    # Attempt to deallocate the IP address.
+    result = deallocate(self.inputs["resourceInfo"], deallocation, base_url, headers, cert)
 
-        if result:
-          # Append the deallocation result to the list.
-          deallocation_result.append(result)
+    if result:
+      # Append the deallocation result to the list.
+      deallocation_result.append(result)
 
-    # If no IPs were deallocated, raise an exception.
-    if not deallocation_result:
-        # Log the error.
-        raise ValueError("No IP deallocations were processed.")
+  # If no IPs were deallocated, raise an exception.
+  if not deallocation_result:
+    # Log the error.
+    raise ValueError("No IP deallocations were processed.")
 
-    # Return the deallocation result.
-    return {"ipDeallocations": deallocation_result}
+  # Return the deallocation result.
+  return {"ipDeallocations": deallocation_result}
+
+def delete_ip_address(ip_address, subnet_id, base_url, headers, cert, request):
+  # Log the IP deallocation.
+  logging.info(f"Deallocating IP {ip_address} from range {subnet_id}")
+
+  # Construct the URL to deallocate the IP address.
+  url = f"{base_url}/addresses/{str(ip_address)}/{str(subnet_id)}"
+
+  # Attempt to deallocate the IP and if successful, return the result.
+  request.make_request("DELETE", url, headers=headers, verify=cert)
+  
+  # Log the successful deallocation.
+  logging.info(f"Successfully deallocated target IP {str(ip_address)} from range {str(subnet_id)}")
 
 # Function that makes an API call to deallocate a specific IP address.
 def deallocate(resource, deallocation, base_url, headers, cert):
-    # Initialize the request handler, which will be used to make the API call.
-    request = RequestHandler()
+  # Initialize the request handler, which will be used to make the API call.
+  request = RequestHandler()
 
-    # Log the IP deallocation.
-    logging.info(f"Deallocating IP {deallocation['ipAddress']} from range {deallocation['ipRangeId']}")
+  # Initialize IP to be deallocated.
+  ip_address = deallocation['ipAddress']
 
-    # Construct the URL to deallocate the IP address.
-    url = f"{base_url}/addresses/{str(deallocation['ipAddress'])}/{str(deallocation['ipRangeId'])}"
+  # Initialize Subnet ID that contains target IP address
+  subnet_id = deallocation['ipRangeId']
 
-    # Attempt to deallocate the IP and if successful, return the result.
-    request.make_request("DELETE", url, headers=headers, verify=cert)
-    
-    # Log the successful deallocation.
-    logging.info(f"Successfully deallocated IP {str(deallocation['ipAddress'])} from range {str(deallocation['ipRangeId'])}")
+  # Perform the IP address deallocation.
+  delete_ip_address(ip_address, subnet_id, base_url, headers, cert, request)
 
-    # Return the deallocation result.
-    return {
+  # Check that no other IP addresses exist for the IP address
+  # Set the URL to check if the IP address exists
+  url = f"{base_url}/addresses/{str(ip_address)}"
+
+  try:
+    # Make a GET request to check if the IP address exists
+    response = request.make_request("GET", url, headers=headers, verify=cert)
+
+    if response["success"] is True:
+      # Iterate over IP address data
+      for ip_address_data in response["data"]:
+        if ip_address_data["description"] == "Orphaned IP address":
+          # Get the IP address ID
+          ip_address = ip_address_data["ip"]
+
+          # Get the IP address subnet ID
+          subnet_id = ip_address_data["subnetId"]
+
+          # Perform the IP address deallocation
+          delete_ip_address(ip_address, subnet_id, base_url, headers, cert, request)
+    else:
+      # Return the deallocation result.
+      return {
         "ipDeallocationId": str(deallocation["id"]),
         "message": "Success"
+      }
+  except Exception as e:
+    logging.error(f"IP address does not exist in IPAM: {str(e)}")
+    # Return the deallocation result.
+    return {
+      "ipDeallocationId": str(deallocation["id"]),
+      "message": "Success"
+    }
+
+  # Return the deallocation result.
+  return {
+      "ipDeallocationId": str(deallocation["id"]),
+      "message": "Success"
     }

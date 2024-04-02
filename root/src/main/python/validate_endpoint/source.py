@@ -9,7 +9,16 @@ and license terms. Your use of these subcomponents is subject to the terms and
 conditions of the subcomponent's license, as noted in the LICENSE file.
 """
 
-'''
+"""
+The validate endpoint uses the Aria Automation passed properties:
+    - API Key
+    - API Secret
+    - API hostname
+Whilst the Aria Automation system will only know the PHP IPAM information:
+    - Success
+"""
+
+"""
 Example payload:
 
 "inputs": {
@@ -18,7 +27,7 @@ Example payload:
       "hostName": "sampleipam.sof-mbu.eng.vmware.com"
     }
   }
-'''
+"""
 
 # Import the requests library to make rest calls
 import requests

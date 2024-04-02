@@ -9,7 +9,36 @@ and license terms. Your use of these subcomponents is subject to the terms and
 conditions of the subcomponent's license, as noted in the LICENSE file.
 """
 
-'''
+"""
+The get IP Blocks uses the Aria Automation passed properties:
+    - None
+Whilst the Aria Automation system will only know the PHP IPAM information:
+    - Subnet ID
+    - Subnet Name
+    - Subnet CIDR
+    - Subnet IP version
+    - Subnet parent name
+    - Subnet description
+    - Subnet gateway
+    - Subnet DNS Search domains
+    - Subnet domains
+
+The get IP blocks has links to the following IPAM Actions:
+    - Allocate IP range
+        - To allocate a range of IP addresses from the IP block
+        - Required information for get IP blocks:
+            - IP block ID
+            - IP Block Name
+            - IP Block Prefixlength
+
+As all subnets in PHP IPAM can become either IP Block or IP Range, only subnets that can have an IP address assigned to them are considered as IP Range.
+However any IP Range can become an IP Block if a child subnet is created within it.
+A IP Block can only become an IP Range if all child subnets are deleted.
+Any subnet converted to a IP Block will have orphaned IP addresses that can be moved through re-creation of the IP address.
+As such any IP address that is orphaned should not be touched or moved as a IP Block that is converted back to an IP range will un-orphan the IP addresses.
+"""
+
+"""
 Example payload:
 
 "inputs": {
@@ -26,7 +55,7 @@ Example payload:
       "pageToken": "87811419dec2112cda2aa29685685d650ac1f61f"
     }
   }
-'''
+"""
 
 # Import the requests library to be used for the rest call
 import requests
@@ -105,7 +134,7 @@ def collect_ip_blocks(base_url, headers, cert):
     ipBlocks = []
 
     # Log the fact that collection of IP blocks has started.
-    logging.info("Collecting ip blocks")
+    logging.info("Collecting ip blocks (all subnets are IP Blocks as subnets can be converted to IP Blocks)")
 
     # URL to get all subnets from IPAM
     url = f"{base_url}/subnets/"
@@ -120,16 +149,8 @@ def collect_ip_blocks(base_url, headers, cert):
 
     # Loop through each subnetID within the subnetIds variable
     for subnetId in subnetIds:
-        # Set the url to get the subnet type e.g. IP Block or IP Range, based on wether or not the subnet can have IP addresses assigned to it
-        url = f"{base_url}/subnets/{str(subnetId)}/first_free"
-
-        # Make a GET request to get the subnet type
-        response = request.make_request("GET", url, headers=headers, verify=cert)
-
-        # If the subnet type is an IP Block
-        if response['success'] == False:
-            # Append the subnet ID to the subnet_classification['ipBlock'] variable
-            subnet_classification['ipBlock'].append(str(subnetId))
+        # Append the subnet ID to the subnet_classification['ipBlock'] variable as all subnets can become IP Blocks
+        subnet_classification['ipBlock'].append(str(subnetId))
     
     # Loop through each ipBlock ID within the subnet_classification['ipBlock'] variable
     for ipBlockId in subnet_classification['ipBlock']:

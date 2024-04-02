@@ -9,7 +9,39 @@ and license terms. Your use of these subcomponents is subject to the terms and
 conditions of the subcomponent's license, as noted in the LICENSE file.
 """
 
-'''
+"""
+The allocate IP Range uses the Aria Automation passed properties:
+    - None
+Whilst the Aria Automation system will only know the PHP IPAM information:
+    - Subnet ID
+    - Subnet Name
+    - Subnet Description
+    - Subnet Start IP Address
+    - Subnet End IP Address
+    - Subnet IP version
+    - Subnet PrefixLength
+    - Subnet Gateway
+    - Subnet DNS search domain
+    - Subnet Domains
+
+The get IP ranges has links to the following IPAM Actions:
+    - allocate IP range
+        - To allocate a range of IP addresses from IP block
+        - Required information for get ip ranges"
+            - Uses IP Block level information
+    - deallocate IP range
+        - To deallocate a range of IP addresses from IP block
+        - Required information for get ip ranges:
+            - Uses IP Block level information
+
+As all subnets in PHP IPAM can become either IP Block or IP Range, only subnets that can have an IP address assigned to them are considered as IP Range.
+However any IP Range can become an IP Block if a child subnet is created within it.
+A IP Block can only become an IP Range if all child subnets are deleted.
+Any subnet converted to a IP Block will have orphaned IP addresses that can be moved through re-creation of the IP address.
+As such any IP address that is orphaned should not be touched or moved as a IP Block that is converted back to an IP range will un-orphan the IP addresses.
+"""
+
+"""
 Example payload:
 
 "inputs": {
@@ -26,7 +58,7 @@ Example payload:
       "pageToken": "789c55905d6e02310c84df7d91452a456481168ec04b55950344f9db55dadd384abc056e5f3b42adfa12299f279ec9ac7c5670e9b0045a4ad2430c93af7a465f3bc83d4f9e3aa8976e6681ce660c827770de2aa1a68c72dfc3cae74393999b2e4df302e72691373aa60199bd827398efac18810f87a952591c61817c849513999df0b6c11436d6d400effcfacc14f2099cd6768913c5a435a0fd0c8e20ab2dbcd147564a2228c93b60b99ae2d94efde6ac640a09d9331130c539367078c41c915067ac9122268dc350439bf3379e9bc01b32025e9bd111aa65c829e89e83f0135ba740572c5f525c73f95faa608e39e55e62c6fcbd37de9775b891212a758d59bceb7a0eb30d7c7f6cd35c1399984291053b30f29fc5feed6cedf7adfe21962ab17b8ebde5089b1fec0d97d7-e5c4e5a1d726f600c22ebfd9f186148a1449755fd79a69ceabfe2aa"
     }
   }
-'''
+"""
 
 # Import the requests library to be used for the rest call
 import requests

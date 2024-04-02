@@ -10,6 +10,19 @@ conditions of the subcomponent's license, as noted in the LICENSE file.
 """
 
 """
+The Deallocate IP Range uses the Aria Automation passed properties:
+  - IP Range ID
+Whilst the Aria Automation system will only know the PHP IPAM information:
+  - None
+
+The Deallocate IP Range has links to the following IPAM Actions:
+  - allocate IP range
+    - To allocate a new IP Range
+    - Required information for the deallocate IP Range:
+      - IP Range ID
+"""
+
+"""
 Example payload:
 
 "inputs": {

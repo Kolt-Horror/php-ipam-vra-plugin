@@ -10,6 +10,21 @@ conditions of the subcomponent's license, as noted in the LICENSE file.
 """
 
 """
+The update record uses the Aria Automation passed properties:
+    - IP address
+    - Hostname
+    - MAC address
+Whilst the Aria Automation system will only know the PHP IPAM information:
+    - None
+
+The update record has links to the following IPAM Actions:
+    - allocate IP
+        - To allocate an IP address
+        - Required information for update record:
+            - IP address
+"""
+
+"""
 Example payload:
 
 "inputs": {

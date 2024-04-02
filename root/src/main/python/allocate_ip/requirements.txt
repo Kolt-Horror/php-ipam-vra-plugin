@@ -1,16 +1,2 @@
 requests==2.21.0
 ipaddress
-
-# The allocate IP uses the Aria Automation passed properties:
-#   - range_id
-#   - resource IP address
-#   - resource name
-#   - resource owner
-#   - resource description if it exists
-# Whilst the Aria Automation system will only know the PHP IPAM information:
-#   - IP address recorded by IPAM
-#   - IP version recorded by IPAM
-#   - Subnet prefix length for the IP address within IPAM
-#   - Subnet gateway if marked as a gateway within IPAM
-#   - Subnet DNS search domains for IP address
-#   - Subnet domains for IP address

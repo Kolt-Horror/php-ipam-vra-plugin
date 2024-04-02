@@ -10,6 +10,41 @@ conditions of the subcomponent's license, as noted in the LICENSE file.
 """
 
 """
+The allocate IP uses the Aria Automation passed properties:
+  - range_id
+  - resource IP address
+  - resource name
+  - resource owner
+  - resource description if it exists
+Whilst the Aria Automation system will only know the PHP IPAM information:
+  - IP address recorded by IPAM
+  - IP version recorded by IPAM
+  - Subnet prefix length for the IP address within IPAM
+  - Subnet gateway if marked as a gateway within IPAM
+  - Subnet DNS search domains for IP address
+  - Subnet domains for IP address
+
+The Allocate IP has links to the following IPAM Actions:
+    - deallocate IP
+        - To remove the allocated IP address
+        - Required information for allocate IP:
+            - IP address
+            - IP address Subnet ID
+    - update IP
+        - To update the allocated IP address information within IPAM
+        - Required information for allocate IP:
+            - IP address
+            - hostname
+            - IP Subnet ID
+    - get IP ranges
+        - As the IP address is assigned from a retreived IP range
+        - Required information for allocate IP:
+            - Subnet ID
+            - Subnet DNS search domain
+            - Subnet domains
+"""
+
+"""
 Example payload
 
 "inputs": {
@@ -187,40 +222,45 @@ def allocate(resource, allocation, base_url, headers, cert):
         # Return the result list
         return allocateResult
 
-# Function that is called by the allocate function to allocate an IP address
-def allocate_in_range(range_id, resource, allocation, base_url, headers, cert):
-    # Initialize the request handler, which will be used to make the API call.
-    request = RequestHandler()
+# Create Function that does:
+def check_ip_address(ip_address, range_id, resource, base_url, headers, cert, request):
+    # Check if the IP address is already allocated within IPAM
+    url = f"{base_url}/addresses/search/{ip_address}/"
 
-    response = None
+    try:
+        # Perform the get rest call to the PHP IPAM API
+        response = request.make_request("GET", url, headers=headers, verify=cert)
+        
+        # IF IP address is already allocated
+        if response["success"] is True:
+            # For each IP address data in the response
+            for ip_address_data in response["data"]:
+                # IF IP address is already allocated in the target subnet
+                if ip_address_data["subnetId"] == range_id:
+                    # Raise an exception with the error message
+                    raise Exception(f"IP address {ip_address} already allocated in range {range_id}")
+                # ELSE
+                else:
+                    # Log that the IP address is already allocated as an orphaned IP address
+                    logging.info(f"IP address {ip_address} already allocated as an orphaned IP address")
+                    
+                    # Mark the IP address as taken in the target subnet
+                    ip_id = ip_address_data["id"]
+                    subnet_id = ip_address_data["subnetId"]
+                    hostname = ip_address_data["hostname"]
+                    owner = ip_address_data["owner"]
 
-    ipAddress = None
+                    # Mark the IP address as taken
+                    mark_ip_address_as_taken(ip_address, range_id, hostname, base_url, owner, headers, cert, request, ip_id, subnet_id)
 
-    # Process to determine if IP address is statically allocated or not
-    if "start" in allocation:
-        # Log that the IP address is to be statically allocated
-        logging.info(f"IP address {allocation['start']} to be statically allocated from range {range_id}")
-
-        # Check if the IP address is already allocated
-        url = f"{base_url}/addresses/{allocation['start']}/{range_id}/"
-
-        try:
-            # Perform the get rest call to the PHP IPAM API
-            response = request.make_request("GET", url, headers=headers, verify=cert)
-
-            # Log that the IP address was already allocated
-            logging.info(f"IP address {allocation['start']} already allocated from range {range_id}")
-
-            # Raise an exception with the error message
-            raise Exception(f"IP address {allocation['start']} already allocated from range {range_id}")
-        except Exception as e:
-            # Log that the IP address was not found
-            logging.info(f"IP address {allocation['start']} not found in range {range_id}")
-
+                    # Raise an exception with the error message
+                    raise Exception(f"IP address {ip_address} already allocated in range {range_id} as an orphaned IP address")
+        # ELSE post IP address
+        else:
             # Create IP address allocation payload
             payload = {
                 "subnetId": range_id,
-                "ip": allocation["start"],
+                "ip": ip_address,
                 "hostname": str(resource["name"]),
                 "owner": str(resource["owner"]),
                 "note": str("vRA deployment")
@@ -230,40 +270,102 @@ def allocate_in_range(range_id, resource, allocation, base_url, headers, cert):
             if "description" in resource:
                 # Add the description to the payload
                 payload["description"] = str(resource["description"])
-            
-            # Convert the payload to a JSON string
-            payload = json.dumps(payload)
 
-            # Create the URL to be used for the rest call
+            # Set API URL
             url = f"{base_url}/addresses/"
 
-            # Perform the post rest call to the PHP IPAM API
-            response = request.make_request("POST", url, headers=headers, data=payload, verify=cert)
+            # Set REST call method
+            method = "POST"
+
+            # Action the create IP address function
+            response = create_ip_address(payload, url, method, headers, cert, request)
+
+            # Return the IP address
+            return ip_address
+    except Exception as e:
+        logging.error(f"Failed to check IP address: {str(e)}")
+
+def mark_ip_address_as_taken(ip_address, range_id, hostname, base_url, owner, headers, cert, request, ip_id, subnet_id):
+    # Initialize the payload to be used for the rest call
+    payload = {
+        "subnetId": range_id,
+        "ip": ip_address,
+        "hostname": str(hostname),
+        "description": "Orphaned IP address",
+        "owner": str(owner),
+        "note": f"Original IP ID: {ip_id}, Original Subnet ID: {subnet_id}"
+    }
+
+    # Set API URL
+    url = f"{base_url}/addresses/"
+
+    # Set REST call method
+    method = "POST"
+
+    return create_ip_address(payload, url, method, headers, cert, request)
+
+
+def create_ip_address(payload, url, method, headers, cert, request):
+    # Convert the payload to a JSON string
+    payload = json.dumps(payload)
+
+    # Perform the post rest call to the PHP IPAM API
+    response = request.make_request(method, url, headers=headers, data=payload, verify=cert)
+
+    return response
+
+# Function that is called by the allocate function to allocate an IP address
+def allocate_in_range(range_id, resource, allocation, base_url, headers, cert):
+    # Initialize the request handler, which will be used to make the API call.
+    request = RequestHandler()
+
+    response = None
+
+    ipAddress = None
+
+    # IF static allocation is to occur
+    if allocation["start"]:
+        try:
+            # Perform IP Check
+            response = check_ip_address(allocation['start'], range_id, resource, base_url, headers, cert, request)
 
             # Set the IP address to the statically allocated IP address
-            ipAddress = allocation["start"]
+            ipAddress = response
+        except Exception as e:
+            logging.error(f"Failed to allocate IP address: {str(e)}")
+
+            return e
     else:
-        # Initialize the payload to be used for the rest call
-        payload = {
-            "hostname": str(resource["name"]),
-            "owner": str(resource["owner"]),
-            "note": str("vRA deployment")
-        }
-
-        if "description" in resource:
-            payload["description"] = str(resource["description"])
-
-        # Convert the payload to a JSON string
-        payload = json.dumps(payload)
-
         # Initialize the PHP IPAM URL to be used for the rest call
         url = f"{base_url}/addresses/first_free/{str(range_id)}/"
 
-        # Perform the post rest call to the PHP IPAM API
-        response = request.make_request("POST", url, headers=headers, data=payload, verify=cert)
+        # Initialize the loop variable
+        loop_condition = True
 
-        # Set the IP address to the dynamically allocated IP address
-        ipAddress = response['data']
+        # While loop to iterate through the range and find the first available IP address
+        while loop_condition:
+            try:
+                # Perform the post rest call to the PHP IPAM API
+                response = request.make_request("GET", url, headers=headers, verify=cert)
+            
+                # Perform IP Check
+                try:
+                    # Perform IP Check / allocation
+                    response = check_ip_address(response["data"], range_id, resource, base_url, headers, cert, request)
+
+                    # Set the IP address that was dynamically allocated IP address
+                    ipAddress = response
+
+                    # Set the loop condition to False to break the loop
+                    loop_condition = False
+                except Exception as e:
+                    logging.error(f"Failed to allocate IP address: {str(e)}")
+
+                    return e
+            except Exception as e:
+                logging.error(f"Failed to get first free IP address: {str(e)}")
+
+                return e
 
     # Perform IP Address check
     url = f"{base_url}/addresses/{ipAddress}/{range_id}/"

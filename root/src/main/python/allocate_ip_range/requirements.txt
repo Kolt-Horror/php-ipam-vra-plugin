@@ -1,17 +1,1 @@
 requests==2.21.0
-
-# The allocate IP Range uses the Aria Automation passed properties:
-#   - subnetPrefixLength
-#   - name
-#   - IP Block ID
-# Whilst the Aria Automation system will only know the PHP IPAM information:
-#   - IP Range ID
-#   - Subnet Name
-#   - Subnet start IP address
-#   - Subnet end IP address
-#   - Subnet IP version
-#   - Subnet PrefixLength
-#   - Subnet description if available
-#   - Subnet gateway if available
-#   - Subnet DNS search domains if available
-#   - Subnet domains if available

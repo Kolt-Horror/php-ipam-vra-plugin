@@ -10,6 +10,39 @@ conditions of the subcomponent's license, as noted in the LICENSE file.
 """
 
 """
+
+The allocate IP Range uses the Aria Automation passed properties:
+    - subnetPrefixLength
+    - name
+    - IP Block ID
+Whilst the Aria Automation system will only know the PHP IPAM information:
+    - IP Range ID
+    - Subnet Name
+    - Subnet start IP address
+    - Subnet end IP address
+    - Subnet IP version
+    - Subnet PrefixLength
+    - Subnet description if available
+    - Subnet gateway if available
+    - Subnet DNS search domains if available
+    - Subnet domains if available
+
+The allocate ip range has links to the following IPAM Actions:
+    - get IP Ranges
+        - To add the allocated IP Range to the IPAM system
+        - Required information for allocate IP Range:
+            - None as the system will auto pick up this Subnet if IP addresses can be assigned.
+    - deallocate IP Range
+        - To remove the allocated IP Range from the IPAM system
+        - Required information for deallocate IP Range:
+            - IP Range ID
+    - get IP Blocks
+        - To get the IP Block information for the allocated IP Range
+        - Required information for get IP Blocks:
+            - IP Block ID 
+"""
+
+"""
 Example payload
 
 "inputs": {

@@ -116,22 +116,62 @@ def do_get_ip_ranges(self, auth_credentials, cert):
     # Return the result object to vRA.
     return result_ranges
 
+# Function that gets ip range subnets from the IPAM service.
+def get_ip_ranges(unprocessed_subnets, base_url, headers, cert, request):
+    # Initialize the result variable
+    result = []
+
+    # Loop through each subnetId within the unprocessed_subnets array
+    for subnetId in unprocessed_subnets:
+        # Set the url to get the subnet type e.g. IP Block or IP Range, based on wether or not the subnet can have IP addresses assigned to it
+        url = f"{base_url}/subnets/{str(subnetId)}/first_free"
+
+        # Try to make a GET request to get the subnet type
+        try:
+            # Make a GET request to get the subnet type
+            response = request.make_request("GET", url, headers=headers, verify=cert)
+        except requests.exceptions.HTTPError as e:
+            # If the request fails, log the error message and continue to the next iteration
+            logging.error(f"Error: {e}")
+            continue
+
+        # If the subnet type is an IP Range
+        if response['success'] == True:
+            # Append the IP Range to the result variable
+            result.append(str(subnetId))
+        #else:
+            # Append the IP Block to the result variable
+            #result.append(str(subnetId))
+    
+    # Return the subnet_classification variable
+    return result
+
+# Function that gets the subnet information from the IPAM service.
+def get_subnet_information(target_subnets, base_url, headers, cert, request):
+    # Initialize the subnets array
+    target_subnets = []
+
+    # Loop through each subnet ID within the target_subnets variable
+    for subnet in target_subnets:
+        # Set the url to get the subnet information
+        url = f"{base_url}/subnets/{str(subnet)}/"
+
+        # Make a GET request to get the subnet information.
+        response = request.make_request("GET", url, headers=headers, verify=cert)
+
+        # Append the subnet information to the target_subnets variable
+        target_subnets.append(response['data'])
+    
+    # Return the subnets variable
+    return target_subnets
+
 # Function that collects IP ranges from the IPAM service.
 def collect_ranges(base_url, headers, cert):
     # Initialize the request handler, which will be used to make API calls.
     request = RequestHandler()
 
     # Initialize the subnetsIds array
-    subnetIds = []
-
-    # Initialize the subnet_classification dictionary
-    subnet_classification = {
-        "ipBlock": [],
-        "ipRange": []
-    }
-
-    # Initialize the subnets array
-    subnets = []
+    unprocessed_subnets = []
 
     # Initialize the ipRanges array
     ipRanges = []
@@ -148,34 +188,16 @@ def collect_ranges(base_url, headers, cert):
     # Loop through each subnet within response['data'] to get the subnet ID
     for subnet in response['data']:
         # Append the subnet ID to the subnets variable
-        subnetIds.append(str(subnet['id']))
+        unprocessed_subnets.append(str(subnet['id']))
 
-    # Loop through each subnetId within the subnetIds array
-    for subnetId in subnetIds:
-        # Set the url to get the subnet type e.g. IP Block or IP Range, based on wether or not the subnet can have IP addresses assigned to it
-        url = f"{base_url}/subnets/{str(subnetId)}/first_free"
+    # Call the check_subnet_type function to get the subnet classification e.g. IP Range or IP Block
+    target_subnets = get_ip_ranges(unprocessed_subnets, base_url, headers, cert, request)
 
-        # Make a GET request to get the subnet type
-        response = request.make_request("GET", url, headers=headers, verify=cert)
-
-        # If the subnet type is an IP Range
-        if response['success'] == True:
-            # Append the subnet ID to the subnet_classification['ipRange'] variable
-            subnet_classification['ipRange'].append(str(subnetId))
-
-    # Loop through each ipRange ID within the subnet_classification['ipRange'] variable
-    for ipRangeId in subnet_classification['ipRange']:
-        # Set the url to get the subnet information
-        url = f"{base_url}/subnets/{str(ipRangeId)}/"
-
-        # Make a GET request to get the subnet information.
-        response = request.make_request("GET", url, headers=headers, verify=cert)
-
-        # Append the subnet information to the subnets variable
-        subnets.append(response['data'])
+    # Get each subnet's information
+    subnets_info = get_subnet_information(target_subnets, base_url, headers, cert, request)
 
     # Loop through each subnet within the subnets variable to create a dictionary variable
-    for subnet in subnets:
+    for subnet in subnets_info:
         # Initialize the ipRange dictionary
         ipRange = {
             "id": str(subnet['id']),

@@ -130,9 +130,9 @@ def get_ip_ranges(unprocessed_subnets, base_url, headers, cert, request):
         try:
             # Make a GET request to get the subnet type
             response = request.make_request("GET", url, headers=headers, verify=cert)
-        except requests.exceptions.HTTPError as e:
+        except Exception as e:
             # If the request fails, log the error message and continue to the next iteration
-            logging.error(f"Error: {e}")
+            logging.info(f"HTTP error but non issue: {e}")
             continue
 
         # If the subnet type is an IP Range

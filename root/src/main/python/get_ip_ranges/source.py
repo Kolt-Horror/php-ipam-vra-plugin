@@ -123,25 +123,35 @@ def get_ip_ranges(unprocessed_subnets, base_url, headers, cert, request):
 
     # Loop through each subnetId within the unprocessed_subnets array
     for subnetId in unprocessed_subnets:
-        # Set the url to get the subnet type e.g. IP Block or IP Range, based on wether or not the subnet can have IP addresses assigned to it
-        url = f"{base_url}/subnets/{str(subnetId)}/first_free"
+        # REST Call to check if the subnet is full or not
+        url = f"{base_url}/subnets/{str(subnetId)}/usage/"
+        response = request.make_request("GET", url, headers=headers, verify=cert)
 
-        # Try to make a GET request to get the subnet type
-        try:
-            # Make a GET request to get the subnet type
-            response = request.make_request("GET", url, headers=headers, verify=cert)
-        except Exception as e:
-            # If the request fails, log the error message and continue to the next iteration
-            logging.info(f"HTTP error but non issue: {e}")
-            continue
-
-        # If the subnet type is an IP Range
-        if response['success'] == True:
-            # Append the IP Range to the result variable
+        # IF Used_percent is greater than 0 then the subnet is a IP Range
+        if response["data"]["Used_percent"] > 0:
+            # Add subnet as it is a IP Range
             result.append(str(subnetId))
-        #else:
-            # Append the IP Block to the result variable
-            #result.append(str(subnetId))
+        # ELSE perform the first_free check
+        else:
+            # Set the url to get the subnet type e.g. IP Block or IP Range, based on wether or not the subnet can have IP addresses assigned to it
+            url = f"{base_url}/subnets/{str(subnetId)}/first_free"
+
+            # Try to make a GET request to get the subnet type
+            try:
+                # Make a GET request to confirm an IP address can be assigned to the subnet
+                response = request.make_request("GET", url, headers=headers, verify=cert)
+
+                # If the subnet can have an IP address assigned to it then it is an IP Range
+                if response['success'] == True:
+                    # Append the IP Range to the result variable
+                    result.append(str(subnetId))
+                #else:
+                    # Append the IP Block to the result variable
+                    #result.append(str(subnetId))
+            except Exception as e:
+                # If the request fails, log the error message and continue to the next iteration
+                logging.info(f"subnet ip range check failed as subnet is not a IP Range: {e}")
+                continue
     
     # Return the subnet_classification variable
     return result

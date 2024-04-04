@@ -131,7 +131,7 @@ def get_ip_blocks(base_url, headers, cert, request):
         response = request.make_request("GET", url, headers=headers, verify=cert)
         
         # Check if the subnet is equal to or greater than 2 maxhosts as these subnets can be converted to IP Blocks
-        if response['data']['maxhosts'] >= 2:
+        if int(response['data']['maxhosts']) >= 2:
             # Set url to get the subnet information
             url = f"{base_url}/subnets/{str(subnet['id'])}/"
 

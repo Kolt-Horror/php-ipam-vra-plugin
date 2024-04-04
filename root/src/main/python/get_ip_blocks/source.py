@@ -113,22 +113,44 @@ def do_get_ip_blocks(self, auth_credentials, cert):
     # Return the result to vRA.
     return result_ip_blocks
 
+# Function that get subnets that can be converted to IP Blocks or are already IP blocks
+def get_ip_blocks(base_url, headers, cert, request):
+    # Initialize the subnets variable.
+    subnets = []
+    
+    # Get all subnets from IPAM
+    # URL to get all subnets from IPAM
+    url = f"{base_url}/subnets/"
+
+    # Make a GET request to get all subnets from IPAM.
+    response = request.make_request("GET", url, headers=headers, verify=cert)
+
+    # Loop through each subnet within response['data']
+    for subnet in response['data']:
+        # Set url for subnet usage information
+        url = f"{base_url}/subnets/{str(subnet['id'])}/usage/"
+
+        # Make a GET request to get the subnet usage information
+        response = request.make_request("GET", url, headers=headers, verify=cert)
+        
+        # Check if the subnet is equal to or greater than 2 maxhosts as these subnets can be converted to IP Blocks
+        if response['data']['maxhosts'] >= 2:
+            # Set url to get the subnet information
+            url = f"{base_url}/subnets/{str(subnet['id'])}/"
+
+            # Make a GET request to get the subnet information
+            response = request.make_request("GET", url, headers=headers, verify=cert)
+
+            # Append the subnet information to the subnets variable
+            subnets.append(response['data'])
+    
+    # Return the subnets variable
+    return subnets
+
 # Function that collects IP blocks from the IPAM service.
 def collect_ip_blocks(base_url, headers, cert):
     # Initialize the request handler, which will be used to make API calls.
     request = RequestHandler()
-
-    # Variable to store all subnets ID's
-    subnetIds = []
-
-    # Initialize the subnet_classification dictionary
-    subnet_classification = {
-        "ipBlock": [],
-        "ipRange": []
-    }
-
-    # Initialize the subnets variable.
-    subnets = []
 
     # Initialize the ipBlocks variable.
     ipBlocks = []
@@ -136,32 +158,8 @@ def collect_ip_blocks(base_url, headers, cert):
     # Log the fact that collection of IP blocks has started.
     logging.info("Collecting ip blocks (all subnets are IP Blocks as subnets can be converted to IP Blocks)")
 
-    # URL to get all subnets from IPAM
-    url = f"{base_url}/subnets/"
-
-    # Make a GET request to get all subnets from IPAM.
-    response = request.make_request("GET", url, headers=headers, verify=cert)
-
-    # Loop through each subnet within response['data'] to get the subnet ID
-    for subnet in response['data']:
-        # Append the subnet ID to the subnets variable
-        subnetIds.append(subnet['id'])
-
-    # Loop through each subnetID within the subnetIds variable
-    for subnetId in subnetIds:
-        # Append the subnet ID to the subnet_classification['ipBlock'] variable as all subnets can become IP Blocks
-        subnet_classification['ipBlock'].append(str(subnetId))
-    
-    # Loop through each ipBlock ID within the subnet_classification['ipBlock'] variable
-    for ipBlockId in subnet_classification['ipBlock']:
-        # set the url to get the subnet information
-        url = f"{base_url}/subnets/{str(ipBlockId)}/"
-
-        # Make a GET request to get the subnet information.
-        response = request.make_request("GET", url, headers=headers, verify=cert)
-
-        # Append the subnet information to the subnets variable
-        subnets.append(response['data'])
+    # Get all subnets that can be converted to IP Blocks or are already IP Blocks
+    subnets = get_ip_blocks(base_url, headers, cert, request)
 
     # Loop through each subnet within the subnets variable to create a dictionary variable
     for subnet in subnets:

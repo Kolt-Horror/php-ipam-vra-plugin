@@ -107,11 +107,8 @@ def do_get_ip_blocks(self, auth_credentials, cert):
     # Validate the API key and return the headers for use in subsequent API calls.
     headers = do_api_key_check(base_url, auth_credentials, cert)
 
-    # Set the result_ip_blocks variable to the result of the collect_ip_blocks function
-    result_ip_blocks = collect_ip_blocks(base_url, headers, cert)
-
-    # Return the result to vRA.
-    return result_ip_blocks
+    # Return the result of the collect_ip_blocks function
+    return collect_ip_blocks(base_url, headers, cert)
 
 # Function that get subnets that can be converted to IP Blocks or are already IP blocks
 def get_ip_blocks(base_url, headers, cert, request):

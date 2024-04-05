@@ -88,17 +88,14 @@ def do_get_ip_ranges(self, auth_credentials, cert):
     headers = do_api_key_check(base_url, auth_credentials, cert)
 
     # Set the result ranges and next page token by calling the collect_ranges function
-    result_ranges = collect_ranges(base_url, headers, cert)
-
-    # Return the result object to vRA.
-    return result_ranges
+    return collect_ranges(base_url, headers, cert) 
 
 # Function to validate the API key using the IPAM service.
 def do_api_key_check(base_url, auth_credentials, cert):
     # Construct the URL to check the API key against the IPAM service.
     url = f"{base_url}/user/"
 
-    # Set up the headers for authentication.
+    # Set up the headers for authentication.1   `   1q@#EASZ    `
     headers = {
         "token": auth_credentials["privateKey"],
         "Content-Type": "application/json"
@@ -149,20 +146,22 @@ def collect_ranges(base_url, headers, cert):
 
     # Loop through each subnet within the subnets variable to create a dictionary variable
     for subnet in subnets_info:
-        # Initialize an empty ipRange variable
+        # Initialize an empty ipRange for each IP Range subnet
         ipRange = {}
 
         # Function to get the required information for the IP Range
-        ipRange = mandatory_ip_range_information(subnet)
+        ipRange = mandatory_ip_range_information(subnet, ipRange)
 
         # Function to get the optional information for the IP Range
-        #ipRange = optional_ip_range_information(ipRange, subnet, base_url, headers, cert, request)
+        ipRange = optional_ip_range_information(ipRange, subnet, base_url, headers, cert, request)
 
         # Append the ipRange variable to the ipRanges variable
         ipRanges.append(ipRange)
 
     # Wrap the ipRanges variable in a dictionary and set the key as "ipRanges"
-    result = {"ipRanges": ipRanges}
+    result = {
+        "ipRanges": ipRanges
+    }
     
     # Return the result.
     return result
@@ -184,10 +183,10 @@ def get_ip_ranges(unprocessed_subnets, base_url, headers, cert, request):
             result.append(str(subnetId))
         # ELSE perform the first_free check
         else:
-            # Set the url to get the subnet type e.g. IP Block or IP Range, based on wether or not the subnet can have IP addresses assigned to it
+            # Set URL to confirm if subnet can have IP addresses assigned to it
             url = f"{base_url}/subnets/{str(subnetId)}/first_free"
 
-            # Try to make a GET request to get the subnet type
+            # Try to make a GET request to get the subnet type as IP Blocks will cause a failure
             try:
                 # Make a GET request to confirm an IP address can be assigned to the subnet
                 response = request.make_request("GET", url, headers=headers, verify=cert)
@@ -210,7 +209,7 @@ def get_ip_ranges(unprocessed_subnets, base_url, headers, cert, request):
 # Function that gets the subnet information from the IPAM service.
 def get_subnet_information(target_subnets, base_url, headers, cert, request):
     # Initialize the subnets array
-    target_subnets = []
+    target_subnets_information = []
 
     # Loop through each subnet ID within the target_subnets variable
     for subnet in target_subnets:
@@ -221,22 +220,20 @@ def get_subnet_information(target_subnets, base_url, headers, cert, request):
         response = request.make_request("GET", url, headers=headers, verify=cert)
 
         # Append the subnet information to the target_subnets variable
-        target_subnets.append(response['data'])
+        target_subnets_information.append(response['data'])
     
     # Return the subnets variable
-    return target_subnets
+    return target_subnets_information
 
 # Function to get the required information for the IP Range
-def mandatory_ip_range_information(subnet):
-    # Initialize the ipRange dictionary
-    ipRange = {
-        "id": str(subnet['id']),
-        "name": str(subnet['subnet']),
-        "startIPAddress": str(subnet['calculation']['Min host IP']),
-        "endIPAddress": str(subnet['calculation']['Max host IP']),
-        "ipVersion": subnet['calculation']['Type'],
-        "subnetPrefixLength": int(subnet['calculation']['Subnet bitmask'])
-    }
+def mandatory_ip_range_information(subnet, ipRange):
+    # Set the mandatory information for the IP Range
+    ipRange["id"] = str(subnet['id'])
+    ipRange["name"] = str(subnet['subnet'])
+    ipRange["startIPAddress"] = str(subnet['calculation']['Min host IP'])
+    ipRange["endIPAddress"] = str(subnet['calculation']['Max host IP'])
+    ipRange["ipVersion"] = subnet['calculation']['Type']
+    ipRange["subnetPrefixLength"] = int(subnet['calculation']['Subnet bitmask'])
 
     # Return the mandatory information for the IP Range
     return ipRange
@@ -244,7 +241,7 @@ def mandatory_ip_range_information(subnet):
 # Function to get the optional information for the IP Range
 def optional_ip_range_information(ipRange, subnet, base_url, headers, cert, request):
     # If the subnet is linked to a section
-    if 'sectionId' in subnet:
+    if "sectionId" in subnet:
         # Set the url to get the section information
         url = f"{base_url}/sections/{str(subnet['sectionId'])}/"
 
@@ -252,20 +249,20 @@ def optional_ip_range_information(ipRange, subnet, base_url, headers, cert, requ
         response = request.make_request("GET", url, headers=headers, verify=cert)
 
         # Set the addressSpaceId with the name of the section that the subnet is linked to
-        ipRange["addressSpaceId"] = str(response['data']['name'])
+        ipRange["addressSpaceId"] = str(response["data"]["name"])
 
     # If description key exists within the subnet variable
-    if 'description' in subnet:
+    if "description" in subnet:
         # Set the description key with the subnet description
-        ipRange['description'] = str(subnet['description'])
+        ipRange["description"] = str(subnet["description"])
 
     # If gateway key exisits then set the gatewayAddress key for the ipRange variable
-    if 'gateway' in subnet:
+    if "gateway" in subnet:
         # Set the gatewayAddress key with the subnet gateway IP address
-        ipRange['gatewayAddress'] = str(subnet['gateway']['ip_addr'])
+        ipRange["gatewayAddress"] = str(subnet["gateway"]["ip_addr"])
 
     # If nameservers key exisits within the subnet variable
-    if 'nameservers' in subnet:
+    if "nameservers" in subnet:
         # Split the "namesrv1" string into an array using semicolon as the delimiter
         namesrv1_values = subnet["nameservers"]["namesrv1"].split(";")
         
@@ -288,15 +285,15 @@ def optional_ip_range_information(ipRange, subnet, base_url, headers, cert, requ
                 non_ip_addresses.append(str(value))
 
         # Set the dnsServerAddresses list <string> key for the ipRange variable
-        ipRange['dnsServerAddresses'] = ip_addresses
+        ipRange["dnsServerAddresses"] = ip_addresses
 
         # If non ip addresses exist
         if non_ip_addresses:
             # Set the dnsSearchDomains list <string> key for the ipRange variable
-            ipRange['dnsSearchDomains'] = non_ip_addresses
+            ipRange["dnsSearchDomains"] = non_ip_addresses
 
             # Set the domain key for the ipRange variable, as the first non-IP address
-            ipRange['domain'] = str(non_ip_addresses[0])
+            ipRange["domain"] = str(non_ip_addresses[0])
         
     # Return the optional IP Range information
     return ipRange

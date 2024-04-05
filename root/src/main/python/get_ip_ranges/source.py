@@ -79,6 +79,20 @@ def handler(context, inputs):
 
     return ipam.get_ip_ranges()
 
+# Function that orchestrates the collection of IP ranges from the IPAM service.
+def do_get_ip_ranges(self, auth_credentials, cert):
+    # Initialize the base PHP IPAM URL to be used for the rest call
+    base_url = f"https://{self.inputs['endpoint']['endpointProperties']['hostName']}/api/{auth_credentials['privateKeyId']}"
+
+    # Validate the API key and return the headers for use in subsequent API calls.
+    headers = do_api_key_check(base_url, auth_credentials, cert)
+
+    # Set the result ranges and next page token by calling the collect_ranges function
+    result_ranges = collect_ranges(base_url, headers, cert)
+
+    # Return the result object to vRA.
+    return result_ranges
+
 # Function to validate the API key using the IPAM service.
 def do_api_key_check(base_url, auth_credentials, cert):
     # Construct the URL to check the API key against the IPAM service.
@@ -102,19 +116,56 @@ def do_api_key_check(base_url, auth_credentials, cert):
     # Return the headers for use in subsequent API calls.
     return headers
 
-# Function that orchestrates the collection of IP ranges from the IPAM service.
-def do_get_ip_ranges(self, auth_credentials, cert):
-    # Initialize the base PHP IPAM URL to be used for the rest call
-    base_url = f"https://{self.inputs['endpoint']['endpointProperties']['hostName']}/api/{auth_credentials['privateKeyId']}"
+# Function that collects IP ranges from the IPAM service.
+def collect_ranges(base_url, headers, cert):
+    # Initialize the request handler, which will be used to make API calls.
+    request = RequestHandler()
 
-    # Validate the API key and return the headers for use in subsequent API calls.
-    headers = do_api_key_check(base_url, auth_credentials, cert)
+    # Initialize the subnetsIds array
+    unprocessed_subnets = []
 
-    # Set the result ranges and next page token by calling the collect_ranges function
-    result_ranges = collect_ranges(base_url, headers, cert)
+    # Initialize the ipRanges array
+    ipRanges = []
 
-    # Return the result object to vRA.
-    return result_ranges
+    # Log the start of the IP range collection.
+    logging.info("Collecting ranges")
+
+    # URL to get all subnets from IPAM
+    url = f"{base_url}/subnets/"
+
+    # Make a GET request to get all subnets from IPAM.
+    response = request.make_request("GET", url, headers=headers, verify=cert)
+
+    # Loop through each subnet within response['data'] to get the subnet ID
+    for subnet in response['data']:
+        # Append the subnet ID to the subnets variable
+        unprocessed_subnets.append(str(subnet['id']))
+
+    # Call the check_subnet_type function to get the subnet classification e.g. IP Range or IP Block
+    target_subnets = get_ip_ranges(unprocessed_subnets, base_url, headers, cert, request)
+
+    # Get each subnet's information
+    subnets_info = get_subnet_information(target_subnets, base_url, headers, cert, request)
+
+    # Loop through each subnet within the subnets variable to create a dictionary variable
+    for subnet in subnets_info:
+        # Initialize an empty ipRange variable
+        ipRange = {}
+
+        # Function to get the required information for the IP Range
+        ipRange = mandatory_ip_range_information(subnet)
+
+        # Function to get the optional information for the IP Range
+        #ipRange = optional_ip_range_information(ipRange, subnet, base_url, headers, cert, request)
+
+        # Append the ipRange variable to the ipRanges variable
+        ipRanges.append(ipRange)
+
+    # Wrap the ipRanges variable in a dictionary and set the key as "ipRanges"
+    result = {"ipRanges": ipRanges}
+    
+    # Return the result.
+    return result
 
 # Function that gets ip range subnets from the IPAM service.
 def get_ip_ranges(unprocessed_subnets, base_url, headers, cert, request):
@@ -175,109 +226,77 @@ def get_subnet_information(target_subnets, base_url, headers, cert, request):
     # Return the subnets variable
     return target_subnets
 
-# Function that collects IP ranges from the IPAM service.
-def collect_ranges(base_url, headers, cert):
-    # Initialize the request handler, which will be used to make API calls.
-    request = RequestHandler()
+# Function to get the required information for the IP Range
+def mandatory_ip_range_information(subnet):
+    # Initialize the ipRange dictionary
+    ipRange = {
+        "id": str(subnet['id']),
+        "name": str(subnet['subnet']),
+        "startIPAddress": str(subnet['calculation']['Min host IP']),
+        "endIPAddress": str(subnet['calculation']['Max host IP']),
+        "ipVersion": subnet['calculation']['Type'],
+        "subnetPrefixLength": int(subnet['calculation']['Subnet bitmask'])
+    }
 
-    # Initialize the subnetsIds array
-    unprocessed_subnets = []
+    # Return the mandatory information for the IP Range
+    return ipRange
 
-    # Initialize the ipRanges array
-    ipRanges = []
+# Function to get the optional information for the IP Range
+def optional_ip_range_information(ipRange, subnet, base_url, headers, cert, request):
+    # If the subnet is linked to a section
+    if 'sectionId' in subnet:
+        # Set the url to get the section information
+        url = f"{base_url}/sections/{str(subnet['sectionId'])}/"
 
-    # Log the start of the IP range collection.
-    logging.info("Collecting ranges")
+        # Make a GET request to get the section information
+        response = request.make_request("GET", url, headers=headers, verify=cert)
 
-    # URL to get all subnets from IPAM
-    url = f"{base_url}/subnets/"
+        # Set the addressSpaceId with the name of the section that the subnet is linked to
+        ipRange["addressSpaceId"] = str(response['data']['name'])
 
-    # Make a GET request to get all subnets from IPAM.
-    response = request.make_request("GET", url, headers=headers, verify=cert)
+    # If description key exists within the subnet variable
+    if 'description' in subnet:
+        # Set the description key with the subnet description
+        ipRange['description'] = str(subnet['description'])
 
-    # Loop through each subnet within response['data'] to get the subnet ID
-    for subnet in response['data']:
-        # Append the subnet ID to the subnets variable
-        unprocessed_subnets.append(str(subnet['id']))
+    # If gateway key exisits then set the gatewayAddress key for the ipRange variable
+    if 'gateway' in subnet:
+        # Set the gatewayAddress key with the subnet gateway IP address
+        ipRange['gatewayAddress'] = str(subnet['gateway']['ip_addr'])
 
-    # Call the check_subnet_type function to get the subnet classification e.g. IP Range or IP Block
-    target_subnets = get_ip_ranges(unprocessed_subnets, base_url, headers, cert, request)
-
-    # Get each subnet's information
-    subnets_info = get_subnet_information(target_subnets, base_url, headers, cert, request)
-
-    # Loop through each subnet within the subnets variable to create a dictionary variable
-    for subnet in subnets_info:
-        # Initialize the ipRange dictionary
-        ipRange = {
-            "id": str(subnet['id']),
-            "name": str(subnet['subnet']),
-            "startIPAddress": str(subnet['calculation']['Min host IP']),
-            "endIPAddress": str(subnet['calculation']['Max host IP']),
-            "ipVersion": subnet['calculation']['Type'],
-            "subnetPrefixLength": int(subnet['calculation']['Subnet bitmask'])
-        }
-
-        # If the subnet is linked to a section
-        if 'sectionId' in subnet:
-            # Set the url to get the section information
-            url = f"{base_url}/sections/{str(subnet['sectionId'])}/"
-
-            # Make a GET request to get the section information
-            response = request.make_request("GET", url, headers=headers, verify=cert)
-
-            # Set the addressSpaceId with the name of the section that the subnet is linked to
-            ipRange["addressSpaceId"] = str(response['data']['name'])
-
-        # If description key exists within the subnet variable
-        if 'description' in subnet:
-            # Set the description key with the subnet description
-            ipRange['description'] = str(subnet['description'])
-
-        # If gateway key exisits then set the gatewayAddress key for the ipRange variable
-        if 'gateway' in subnet:
-            # Set the gatewayAddress key with the subnet gateway IP address
-            ipRange['gatewayAddress'] = str(subnet['gateway']['ip_addr'])
-
-        # If nameservers key exisits within the subnet variable
-        if 'nameservers' in subnet:
-            # Split the "namesrv1" string into an array using semicolon as the delimiter
-            namesrv1_values = subnet["nameservers"]["namesrv1"].split(";")
-            
-            # Initialize arrays for IP addresses and non-IP addresses
-            ip_addresses = []
-            non_ip_addresses = []
-
-            # Regular expression to match an IP address pattern
-            ip_pattern = r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"
-
-            # Check each value and categorize them into IP or non-IP
-            for value in namesrv1_values:
-                # If value matches the IP address pattern
-                if re.match(ip_pattern, value):
-                    # Append the value to the ip_addresses variable
-                    ip_addresses.append(str(value))
-                # Else the value does not match the IP address pattern
-                else:
-                    # Append the value to the non_ip_addresses variable
-                    non_ip_addresses.append(str(value))
-
-            # Set the dnsServerAddresses list <string> key for the ipRange variable
-            ipRange['dnsServerAddresses'] = ip_addresses
-
-            # If non ip addresses exist
-            if non_ip_addresses:
-                # Set the dnsSearchDomains list <string> key for the ipRange variable
-                ipRange['dnsSearchDomains'] = non_ip_addresses
-
-                # Set the domain key for the ipRange variable, as the first non-IP address
-                ipRange['domain'] = str(non_ip_addresses[0])
+    # If nameservers key exisits within the subnet variable
+    if 'nameservers' in subnet:
+        # Split the "namesrv1" string into an array using semicolon as the delimiter
+        namesrv1_values = subnet["nameservers"]["namesrv1"].split(";")
         
-        # Append the ipRange variable to the result variable
-        ipRanges.append(ipRange)
+        # Initialize arrays for IP addresses and non-IP addresses
+        ip_addresses = []
+        non_ip_addresses = []
 
-    # Wrap the ipRanges variable in a dictionary and set the key as "ipRanges"
-    result = {"ipRanges": ipRanges}
-    
-    # Return the result.
-    return result
+        # Regular expression to match an IP address pattern
+        ip_pattern = r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"
+
+        # Check each value and categorize them into IP or non-IP
+        for value in namesrv1_values:
+            # If value matches the IP address pattern
+            if re.match(ip_pattern, value):
+                # Append the value to the ip_addresses variable
+                ip_addresses.append(str(value))
+            # Else the value does not match the IP address pattern
+            else:
+                # Append the value to the non_ip_addresses variable
+                non_ip_addresses.append(str(value))
+
+        # Set the dnsServerAddresses list <string> key for the ipRange variable
+        ipRange['dnsServerAddresses'] = ip_addresses
+
+        # If non ip addresses exist
+        if non_ip_addresses:
+            # Set the dnsSearchDomains list <string> key for the ipRange variable
+            ipRange['dnsSearchDomains'] = non_ip_addresses
+
+            # Set the domain key for the ipRange variable, as the first non-IP address
+            ipRange['domain'] = str(non_ip_addresses[0])
+        
+    # Return the optional IP Range information
+    return ipRange

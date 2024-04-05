@@ -76,6 +76,17 @@ def handler(context, inputs):
 
     return ipam.get_ip_blocks()
 
+# Function that orchestrates the collection of IP blocks from the IPAM service.
+def do_get_ip_blocks(self, auth_credentials, cert):
+    # Initialize the base PHP IPAM URL to be used for the rest call
+    base_url = f"https://{self.inputs['endpoint']['endpointProperties']['hostName']}/api/{auth_credentials['privateKeyId']}"
+
+    # Validate the API key and return the headers for use in subsequent API calls.
+    headers = do_api_key_check(base_url, auth_credentials, cert)
+
+    # Return the result of the collect_ip_blocks function
+    return collect_ip_blocks(base_url, headers, cert)
+
 # Function to validate the API key using the IPAM service.
 def do_api_key_check(base_url, auth_credentials, cert):
     # Construct the URL to check the API key against the IPAM service.
@@ -99,51 +110,6 @@ def do_api_key_check(base_url, auth_credentials, cert):
     # Return the headers for use in subsequent API calls.
     return headers
 
-# Function that orchestrates the collection of IP blocks from the IPAM service.
-def do_get_ip_blocks(self, auth_credentials, cert):
-    # Initialize the base PHP IPAM URL to be used for the rest call
-    base_url = f"https://{self.inputs['endpoint']['endpointProperties']['hostName']}/api/{auth_credentials['privateKeyId']}"
-
-    # Validate the API key and return the headers for use in subsequent API calls.
-    headers = do_api_key_check(base_url, auth_credentials, cert)
-
-    # Return the result of the collect_ip_blocks function
-    return collect_ip_blocks(base_url, headers, cert)
-
-# Function that get subnets that can be converted to IP Blocks or are already IP blocks
-def get_ip_blocks(base_url, headers, cert, request):
-    # Initialize the subnets variable.
-    subnets = []
-    
-    # Get all subnets from IPAM
-    # URL to get all subnets from IPAM
-    url = f"{base_url}/subnets/"
-
-    # Make a GET request to get all subnets from IPAM.
-    response = request.make_request("GET", url, headers=headers, verify=cert)
-
-    # Loop through each subnet within response['data']
-    for subnet in response['data']:
-        # Set url for subnet usage information
-        url = f"{base_url}/subnets/{str(subnet['id'])}/usage/"
-
-        # Make a GET request to get the subnet usage information
-        response = request.make_request("GET", url, headers=headers, verify=cert)
-        
-        # Check if the subnet is equal to or greater than 2 maxhosts as these subnets can be converted to IP Blocks
-        if int(response['data']['maxhosts']) >= 2:
-            # Set url to get the subnet information
-            url = f"{base_url}/subnets/{str(subnet['id'])}/"
-
-            # Make a GET request to get the subnet information
-            response = request.make_request("GET", url, headers=headers, verify=cert)
-
-            # Append the subnet information to the subnets variable
-            subnets.append(response['data'])
-    
-    # Return the subnets variable
-    return subnets
-
 # Function that collects IP blocks from the IPAM service.
 def collect_ip_blocks(base_url, headers, cert):
     # Initialize the request handler, which will be used to make API calls.
@@ -160,74 +126,128 @@ def collect_ip_blocks(base_url, headers, cert):
 
     # Loop through each subnet within the subnets variable to create a dictionary variable
     for subnet in subnets:
-        # Initialize the ipBlock dictionary
-        ipBlock = {
-            "id": str(subnet['id']),
-            "name": str(subnet['subnet']),
-            "ipBlockCIDR": str(f"{subnet['calculation']['Network']}/{subnet['calculation']['Subnet bitmask']}"),
-            "ipVersion": str(subnet['calculation']['Type'])
-        }
+        # Initialize the ipBlock variable.
+        ipBlock = {}
 
-        # If the subnet is linked to a section
-        if 'sectionId' in subnet:
-            # Set the url to get the section information
-            url = f"{base_url}/sections/{subnet['sectionId']}/"
+        # Get the mandatory information for the IP Block
+        ipBlock = get_mandatory_information(subnet, ipBlock)
 
-            # Make a GET request to get the section information
-            response = request.make_request("GET", url, headers=headers, verify=cert)
+        # Get the optional information for the IP Block
+        ipBlock = get_optional_information(subnet, ipBlock, base_url, headers, cert, request)
 
-            # Set the addressSpace with the name of the section that the subnet is linked to
-            ipBlock["addressSpace"] = str(response['data']['name'])
-
-        # If description key exists within the subnet variable
-        if 'description' in subnet:
-            # Set the description key with the subnet description
-            ipBlock['description'] = str(subnet['description'])
-
-        # If gateway key exisits then set the gatewayAddress key for the ipBlock variable
-        if 'gateway' in subnet:
-            # Set the gatewayAddress key with the subnet gateway IP address
-            ipBlock['gatewayAddress'] = str(subnet['gateway']['ip_addr'])
-
-        # If nameservers key exisits within the subnet variable
-        if 'nameservers' in subnet:
-            # Split the "namesrv1" string into an array using semicolon as the delimiter
-            namesrv1_values = subnet["nameservers"]["namesrv1"].split(";")
-            
-            # Initialize arrays for IP addresses and non-IP addresses
-            ip_addresses = []
-            non_ip_addresses = []
-
-            # Regular expression to match an IP address pattern
-            ip_pattern = r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"
-
-            # Check each value and categorize them into IP or non-IP
-            for value in namesrv1_values:
-                # If value matches the IP address pattern
-                if re.match(ip_pattern, value):
-                    # Append the value to the ip_addresses variable
-                    ip_addresses.append(str(value))
-                # Else the value does not match the IP address pattern
-                else:
-                    # Append the value to the non_ip_addresses variable
-                    non_ip_addresses.append(str(value))
-
-            # Set the dnsServerAddresses list <string> key for the ipBlock variable
-            ipBlock['dnsServerAddresses'] = ip_addresses
-
-            # If non ip addresses exist
-            if non_ip_addresses:
-                # Set the dnsSearchDomains list <string> key for the ipBlock variable
-                ipBlock['dnsSearchDomains'] = non_ip_addresses
-
-                # Set the domain key for the ipBlock variable, as the first non-IP address
-                ipBlock['domain'] = str(non_ip_addresses[0])
-
-        # Append the ipBlock variable to the result variable
+        # Append the ipBlock variable to the ipBlocks variable
         ipBlocks.append(ipBlock)
+    
+    # Wrap the ipBlocks variable in a dictionary and return it
+    result = {
+        "ipBlocks": ipBlocks
+    }
 
-    # Wrap the ipBlocks list within a dictoinary under the key "ipBlocks"
-    result = {"ipBlocks": ipBlocks}
-
-    # Return the result of all IP blocks.
+    # Return the result variable
     return result
+
+
+# Function that get subnets that can be converted to IP Blocks or are already IP blocks
+def get_ip_blocks(base_url, headers, cert, request):
+    # Initialize the subnets variable.
+    subnets = []
+    
+    # Get all subnets from IPAM
+    # URL to get all subnets from IPAM
+    url = f"{base_url}/subnets/"
+
+    # Make a GET request to get all subnets from IPAM.
+    response = request.make_request("GET", url, headers=headers, verify=cert)
+
+    # Loop through each subnet within response['data']
+    for subnet in response["data"]:
+        # Set url for subnet usage information
+        url = f"{base_url}/subnets/{str(subnet['id'])}/usage/"
+
+        # Make a GET request to get the subnet usage information
+        usage_response = request.make_request("GET", url, headers=headers, verify=cert)
+        
+        # Check if the subnet is equal to or greater than 2 maxhosts as these subnets can be converted to IP Blocks
+        if int(usage_response["data"]["maxhosts"]) >= 2:
+            # Set url to get the subnet information
+            url = f"{base_url}/subnets/{str(subnet['id'])}/"
+
+            # Make a GET request to get the subnet information
+            subnet_info_response = request.make_request("GET", url, headers=headers, verify=cert)
+
+            # Append the subnet information to the subnets variable
+            subnets.append(subnet_info_response['data'])
+    
+    # Return the subnets variable
+    return subnets
+
+# Function that gets the mandatory information for the IP Block
+def get_mandatory_information(subnet, ipBlock):
+    # Set the mandatory information for the IP Block
+    ipBlock['id'] = str(subnet['id'])
+    ipBlock['name'] = str(subnet['subnet'])
+    ipBlock['ipBlockCIDR'] = str(f"{subnet['calculation']['Network']}/{subnet['calculation']['Subnet bitmask']}")
+    ipBlock['ipVersion'] = str(subnet['calculation']['Type'])
+
+    # Return the ipBlock variable
+    return ipBlock
+
+# Function to get the optional information for the IP Block
+def get_optional_information(subnet, ipBlock, base_url, headers, cert, request):
+    # If the subnet is linked to a section
+    if "sectionId" in subnet:
+        # Set the url to get the section information
+        url = f"{base_url}/sections/{subnet['sectionId']}/"
+
+        # Make a GET request to get the section information
+        response = request.make_request("GET", url, headers=headers, verify=cert)
+
+        # Set the addressSpace with the name of the section that the subnet is linked to
+        ipBlock["addressSpace"] = str(response["data"]["name"])
+
+    # If description key exists within the subnet variable
+    if "description" in subnet:
+        # Set the description key with the subnet description
+        ipBlock["description"] = str(subnet["description"])
+
+    # If gateway key exisits then set the gatewayAddress key for the ipBlock variable
+    if "gateway" in subnet:
+        # Set the gatewayAddress key with the subnet gateway IP address
+        ipBlock["gatewayAddress"] = str(subnet["gateway"]["ip_addr"])
+
+    # If nameservers key exisits within the subnet variable
+    if "nameservers" in subnet:
+        # Split the "namesrv1" string into an array using semicolon as the delimiter
+        namesrv1_values = subnet["nameservers"]["namesrv1"].split(";")
+        
+        # Initialize arrays for IP addresses and non-IP addresses
+        ip_addresses = []
+        non_ip_addresses = []
+
+        # Regular expression to match an IP address pattern
+        ip_pattern = r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"
+
+        # Check each value and categorize them into IP or non-IP
+        for value in namesrv1_values:
+            # If value matches the IP address pattern
+            if re.match(ip_pattern, value):
+                # Append the value to the ip_addresses variable
+                ip_addresses.append(str(value))
+            # Else the value does not match the IP address pattern
+            else:
+                # Append the value to the non_ip_addresses variable
+                non_ip_addresses.append(str(value))
+
+        # Set the dnsServerAddresses list <string> key for the ipBlock variable
+        ipBlock["dnsServerAddresses"] = ip_addresses
+
+        # If non ip addresses exist
+        if non_ip_addresses:
+            # Set the dnsSearchDomains list <string> key for the ipBlock variable
+            ipBlock["dnsSearchDomains"] = non_ip_addresses
+
+            # Set the domain key for the ipBlock variable, as the first non-IP address
+            ipBlock["domain"] = str(non_ip_addresses[0])
+
+    # Return the optional information for the IP Block
+    return ipBlock

@@ -184,10 +184,10 @@ def get_ip_blocks(base_url, headers, cert, request):
 # Function that gets the mandatory information for the IP Block
 def get_mandatory_information(subnet, ipBlock):
     # Set the mandatory information for the IP Block
-    ipBlock['id'] = str(subnet['id'])
-    ipBlock['name'] = str(subnet['subnet'])
-    ipBlock['ipBlockCIDR'] = str(f"{subnet['calculation']['Network']}/{subnet['calculation']['Subnet bitmask']}")
-    ipBlock['ipVersion'] = str(subnet['calculation']['Type'])
+    ipBlock["id"] = str(subnet["id"])
+    ipBlock["name"] = str(subnet["subnet"])
+    ipBlock["ipBlockCIDR"] = str(f"{subnet['calculation']['Network']}/{subnet['calculation']['Subnet bitmask']}")
+    ipBlock["ipVersion"] = str(subnet["calculation"]["Type"])
 
     # Return the ipBlock variable
     return ipBlock

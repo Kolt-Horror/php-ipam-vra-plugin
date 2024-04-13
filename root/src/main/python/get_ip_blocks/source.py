@@ -84,8 +84,25 @@ def do_get_ip_blocks(self, auth_credentials, cert):
     # Validate the API key and return the headers for use in subsequent API calls.
     headers = do_api_key_check(base_url, auth_credentials, cert)
 
+    # Get the page token from the inputs
+    pageToken = self.inputs['pagingAndSorting'].get('pageToken', None)
+
+    # Get the max results from the inputs
+    maxResults = self.inputs['pagingAndSorting'].get('maxResults', 25)
+    
     # Return the result of the collect_ip_blocks function
-    return collect_ip_blocks(base_url, headers, cert)
+    result_ip_blocks, next_page_token = collect_ip_blocks(base_url, headers, cert, pageToken, maxResults)
+
+    result = {
+        "ipBlocks": result_ip_blocks,
+    }
+
+    # If the next page token is not None then set the next page token in the result
+    if next_page_token is not None:
+        result["nextPageToken"] = next_page_token
+
+    # Return the result
+    return result
 
 # Function to validate the API key using the IPAM service.
 def do_api_key_check(base_url, auth_credentials, cert):
@@ -111,7 +128,7 @@ def do_api_key_check(base_url, auth_credentials, cert):
     return headers
 
 # Function that collects IP blocks from the IPAM service.
-def collect_ip_blocks(base_url, headers, cert):
+def collect_ip_blocks(base_url, headers, cert, pageToken, maxResults):
     # Initialize the request handler, which will be used to make API calls.
     request = RequestHandler()
 
@@ -122,7 +139,22 @@ def collect_ip_blocks(base_url, headers, cert):
     logging.info("Collecting ip blocks (all subnets are IP Blocks as subnets can be converted to IP Blocks)")
 
     # Get all subnets that can be converted to IP Blocks or are already IP Blocks
-    subnets = get_ip_blocks(base_url, headers, cert, request)
+    subnets = get_ip_blocks(base_url, headers, cert, request) # the function will also return the subnets in ascending order based on the subnet id
+
+    # Sanitize and set a valid page token by converting it to an integer if it is not None else set it to 1
+    pageToken = max(1, int(pageToken) if pageToken and str(pageToken).isdigit() else 1)
+
+    # Determine the maximum number of pages based on the number of subnets and the max results
+    num_pages = max(1, (len(subnets) + maxResults - 1) // maxResults)
+
+    # Set the start variable for the subnets array
+    start = (pageToken - 1) * maxResults
+
+    # Set the end variable for the subnets array
+    end = start + maxResults
+
+    # Set the subnets variable to the subnets array within the start and end range
+    subnets = subnets[start:end]
 
     # Loop through each subnet within the subnets variable to create a dictionary variable
     for subnet in subnets:
@@ -133,18 +165,16 @@ def collect_ip_blocks(base_url, headers, cert):
         ipBlock = get_mandatory_information(subnet, ipBlock)
 
         # Get the optional information for the IP Block
-        ipBlock = get_optional_information(subnet, ipBlock, base_url, headers, cert, request)
+        ipBlock = get_optional_information(subnet, ipBlock)
 
         # Append the ipBlock variable to the ipBlocks variable
         ipBlocks.append(ipBlock)
-    
-    # Wrap the ipBlocks variable in a dictionary and return it
-    result = {
-        "ipBlocks": ipBlocks
-    }
 
-    # Return the result variable
-    return result
+    # Set the next page token to None if the pageToken is greater than or equal to the num_pages else set it to pageToken + 1
+    next_page_token = None if pageToken > num_pages else pageToken + 1
+
+    # Return the ipBlocks and next_page_token
+    return ipBlocks, next_page_token
 
 
 # Function that get subnets that can be converted to IP Blocks or are already IP blocks
@@ -175,36 +205,38 @@ def get_ip_blocks(base_url, headers, cert, request):
             # Make a GET request to get the subnet information
             subnet_info_response = request.make_request("GET", url, headers=headers, verify=cert)
 
+            # If the subnet is linked to a section
+            if "sectionId" in subnet_info_response['data']:
+                # Set the url to get the section information
+                url = f"{base_url}/sections/{subnet_info_response['data']['sectionId']}/"
+
+                # Make a GET request to get the section information
+                addressSpace_response = request.make_request("GET", url, headers=headers, verify=cert)
+
+                # Set the addressSpace with the name of the section that the subnet is linked to
+                subnet_info_response["data"]["addressSpaceId"] = str(addressSpace_response["data"]["name"])
+
             # Append the subnet information to the subnets variable
             subnets.append(subnet_info_response['data'])
     
+    # Put the subnets array in ascending order based on the subnet id
+    subnets = sorted(subnets, key=lambda x: x["id"])
+
     # Return the subnets variable
     return subnets
 
 # Function that gets the mandatory information for the IP Block
 def get_mandatory_information(subnet, ipBlock):
-    # Set the mandatory information for the IP Block
-    ipBlock["id"] = str(subnet["id"])
-    ipBlock["name"] = str(subnet["subnet"])
-    ipBlock["ipBlockCIDR"] = str(f"{subnet['calculation']['Network']}/{subnet['calculation']['Subnet bitmask']}")
-    ipBlock["ipVersion"] = str(subnet["calculation"]["Type"])
-
-    # Return the ipBlock variable
-    return ipBlock
+    return {
+        "id": str(subnet["id"]),
+        "name": str(subnet["subnet"]),
+        "ipBlockCIDR": str(f"{subnet['calculation']['Network']}/{subnet['calculation']['Subnet bitmask']}"),
+        "ipVersion": str(subnet["calculation"]["Type"]),
+        "addressSpaceId": str(subnet["addressSpaceId"])
+    }
 
 # Function to get the optional information for the IP Block
-def get_optional_information(subnet, ipBlock, base_url, headers, cert, request):
-    # If the subnet is linked to a section
-    if "sectionId" in subnet:
-        # Set the url to get the section information
-        url = f"{base_url}/sections/{subnet['sectionId']}/"
-
-        # Make a GET request to get the section information
-        response = request.make_request("GET", url, headers=headers, verify=cert)
-
-        # Set the addressSpace with the name of the section that the subnet is linked to
-        ipBlock["addressSpace"] = str(response["data"]["name"])
-
+def get_optional_information(subnet, ipBlock):
     # If description key exists within the subnet variable
     if "description" in subnet:
         # Set the description key with the subnet description

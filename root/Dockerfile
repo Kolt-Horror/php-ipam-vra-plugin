@@ -2,6 +2,10 @@ FROM photon:3.0-20200609
 
 ADD target/python /ipam/python
 
+RUN tdnf makecache
+RUN tdnf update -y
+RUN tdnf install -y tdnf
+
 RUN tdnf install -y python3-pip.noarch python3-devel gcc glibc-devel binutils linux-api-headers shadow && \
     pip3 install --upgrade pip setuptools && \
     pip3 install certifi && \

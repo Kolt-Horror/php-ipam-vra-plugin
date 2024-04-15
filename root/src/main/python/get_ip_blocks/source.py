@@ -90,9 +90,10 @@ def do_get_ip_blocks(self, auth_credentials, cert):
     # Get the max results from the inputs
     maxResults = self.inputs['pagingAndSorting'].get('maxResults', 25)
     
-    # Return the result of the collect_ip_blocks function
+    # Collect the result_ip_blocks and next_page_token from the collect_ip_blocks function
     result_ip_blocks, next_page_token = collect_ip_blocks(base_url, headers, cert, pageToken, maxResults)
 
+    # Initialize the result variable that is to be returned
     result = {
         "ipBlocks": result_ip_blocks,
     }
@@ -197,7 +198,7 @@ def get_ip_blocks(base_url, headers, cert, request):
         # Make a GET request to get the subnet usage information
         usage_response = request.make_request("GET", url, headers=headers, verify=cert)
         
-        # Check if the subnet is equal to or greater than 2 maxhosts as these subnets can be converted to IP Blocks
+        # Check if the subnet is equal to or greater than 2 maxhosts as these subnets can be IP Blocks
         if int(usage_response["data"]["maxhosts"]) >= 2:
             # Set url to get the subnet information
             url = f"{base_url}/subnets/{str(subnet['id'])}/"
@@ -216,8 +217,16 @@ def get_ip_blocks(base_url, headers, cert, request):
                 # Set the addressSpace with the name of the section that the subnet is linked to
                 subnet_info_response["data"]["addressSpaceId"] = str(addressSpace_response["data"]["name"])
 
-            # Append the subnet information to the subnets variable
-            subnets.append(subnet_info_response['data'])
+            # Set the url to see if a subnet can have an IP address assigned to it
+            url = f"{base_url}/subnets/{str(subnet_info_response['data']['id'])}/first_free/"
+
+            # Set up try catch block to catch the 404 error if the subnet cannot have an IP address assigned to it
+            try:
+                # Make a GET request to see if the subnet can have an IP address assigned to it
+                request.make_request("GET", url, headers=headers, verify=cert) # This is expected to pass or fail
+            except Exception as e: # catch the fail as subnet is an IP Block
+                # Append the subnet information to the subnets variable
+                subnets.append(subnet_info_response['data'])
     
     # Put the subnets array in ascending order based on the subnet id
     subnets = sorted(subnets, key=lambda x: x["id"])

@@ -1,0 +1,102 @@
+# RUN
+# Set the url to be used for the API call
+# Set the headers to be used for the API call
+  # add the token key to the headers
+  # add the content type to the headers
+# Initialize the REST API variable
+# Perform GET request to verify the API key
+  # If the API key is invalid, return an error message
+  # If the API key is valid, return headers object as it is correct
+# Iterate over each allocation in the ipAllocations list
+  # Call the allocate function
+    # Loop over each IP Range ID in the allocation
+      # Call the allocate_in_range function
+        # 
+
+
+
+
+Run: handler()
+  Inputs:
+    - context
+    - inputs
+      "inputs": {
+        "resourceInfo": {
+          "id": "11f912e71454a075574a728848458",
+          "name": "external-ipam-it-mcm-323412",
+          "hostname": "vm1.kolt.local",
+          "description": "test",
+          "type": <"VM", "LOADBALANCER", "NAT", "OTHER">,
+          "owner": "mdzhigarov@vmware.com",
+          "orgId": "ce811934-ea1a-4f53-b6ec-465e6ca7d126",
+          "properties": {
+            # The resource-specific custom properties.
+          },
+          "projectId": "111bb2f0-02fd-4983-94d2-8ac11768150f",
+          "templateId": "111bb2f0-02fd-4983-94d2-8ac11768150f",
+          "deploymentId": "111bb2f0-02fd-4983-94d2-8ac11768150f"
+        },
+        "ipAllocations": [{
+          "id": "111bb2f0-02fd-4983-94d2-8ac11768150f",
+          "ipRangeIds": [
+            "network/ZG5zLm5ldHdvcmskMTAuMjMuMTE3LjAvMjQvMA:10.23.117.0/24/default"
+          ],
+          "nicIndex": "0",
+          "isPrimary": "true",
+          "size": "1",
+          "properties": {
+            # May contain the provider-specific properties.
+          }
+        }],
+        "endpoint": {
+          "id": "f097759d8736675585c4c5d272cd",
+          "endpointProperties": {
+            "hostName": "sampleipam.sof-mbu.eng.vmware.com",
+            "projectId": "111bb2f0-02fd-4983-94d2-8ac11768150f",
+            "providerId": "d8a5e3f2-d839-4365-af5b-f48de588fdc1",
+            "certificate": "<Certificate>"
+          },
+          "authCredentialsLink": "/core/auth/credentials/13c9cbade08950755898c4b89c4a0"
+        }
+      }
+  Outputs:
+    - 
+  Process:
+    # Call the do_allocate_ip function
+
+RUN: do_api_key_check()
+  Inputs:
+    base_url: String
+      - Required: YES
+    auth_credentials: AuthCredentials Object
+      - Required: YES
+    cert: CertificateInfo Object
+      - Required: YES
+  Outputs:
+    headers: {
+      "token": auth_credentials["privateKey"],
+      "Content-Type": "application/json"
+    }
+  Process:
+    # Set the url to be used for the API call
+    # Set the headers to be used for the API call
+      # add the token key to the headers
+      # add the content type to the headers
+    # Initialize the REST API variable
+    # Perform GET request to verify the API key
+      # If the API key is invalid, return an error message
+      # If the API key is valid, return headers object as it is correct
+
+Run: do_allocate_ip()
+  Inputs:
+    - context
+    - inputs
+      
+  Outputs:
+    - 
+  Process:
+    # Call the do_api_key_check function
+      # If the API key is invalid, return an error message
+      # If the API key is valid, continue to the next step
+    # Iterate over each allocation in the ipAllocations list
+      # Append the allocate function result

@@ -1,0 +1,65 @@
+Run: handler()
+  Inputs:
+    - context
+    - inputs
+      "inputs": {
+        "authCredentialsLink": "/core/auth/credentials/13c9cbade08950755898c4b89c4a0",
+        "endpointProperties": {
+          "hostName": "sampleipam.sof-mbu.eng.vmware.com"
+        }
+      }
+  Outputs:
+    message: String
+      - Required: NO
+    certificateInfo: CertificateInfo Object
+      - Required: NO
+  Process:
+    # Call the do_validate_endpoint function
+
+RUN: do_validate_endpoint()
+  Inputs:
+    - context
+    - inputs
+      "inputs": {
+        "authCredentialsLink": "/core/auth/credentials/13c9cbade08950755898c4b89c4a0",
+        "endpointProperties": {
+          "hostName": "sampleipam.sof-mbu.eng.vmware.com"
+        }
+      }
+  Outputs:
+    message: String
+      - Required: NO
+    certificateInfo: CertificateInfo Object
+      - Required: NO
+  Process:
+    # Try Block
+      # Create base_url using PHP IPAM hostname and PHP IPAM privateKeyId e.g. the name of the API token
+      # Call the do_api_key_check function
+      # The process will return as passed
+    # If an EXCEPTION is raised
+      # If the cert is not verified it will request for the SSL Cert to be accepted
+      # else it will fail due to an exception and raise it
+    # If unexpected error occurs it will raise an exception
+
+RUN: do_api_key_check()
+  Inputs:
+    base_url: String
+      - Required: YES
+    auth_credentials: AuthCredentials Object
+      - Required: YES
+    cert: CertificateInfo Object
+      - Required: YES
+  Outputs:
+    headers: {
+      "token": auth_credentials["privateKey"],
+      "Content-Type": "application/json"
+    }
+  Process:
+    # Set the url to be used for the API call
+    # Set the headers to be used for the API call
+      # add the token key to the headers
+      # add the content type to the headers
+    # Initialize the REST API variable
+    # Perform GET request to verify the API key
+      # If the API key is invalid, return an error message
+      # If the API key is valid, return headers object as it is correct

@@ -14,20 +14,16 @@ The validate endpoint uses the Aria Automation passed properties:
     - API Key
     - API Secret
     - API hostname
+
 Whilst the Aria Automation system will only know the PHP IPAM information:
-    - Success
+    - Success OR Failure
+
+The validate endpoint process performs the following steps:
+    - Performs a token check against the target PHP IPAM System
+    - If the token check is successful, the process returns a success message
+    - If there is a ssl error, the process raises an InvalidCertificateException 
 """
 
-"""
-Example payload:
-
-"inputs": {
-    "authCredentialsLink": "/core/auth/credentials/13c9cbade08950755898c4b89c4a0",
-    "endpointProperties": {
-      "hostName": "sampleipam.sof-mbu.eng.vmware.com"
-    }
-  }
-"""
 
 # Import the requests library to make rest calls
 import requests
@@ -64,8 +60,15 @@ def do_api_key_check(base_url, auth_credentials, cert):
     # Initialize the request handler, which will be used to make the API call.
     request = RequestHandler()
 
-    # Make a GET request to validate the API key.
-    request.make_request("GET", url, headers=headers, verify=cert)
+    try:
+        # Make a GET request to validate the API key.
+        request.make_request("GET", url, headers=headers, verify=cert)
+    except Exception as e:
+        # Log the error and raise the exception
+        logging.error(f"An unexpected error occurred when performing Authentication Check: {e}")
+
+        # Raise the exception
+        raise e
 
     # Log the successful API key check.
     logging.info("API key check successful")
@@ -95,7 +98,7 @@ def do_validate_endpoint(self, auth_credentials, cert):
         """
         if "SSLCertVerificationError" in str(ssl_error) or "CERTIFICATE_VERIFY_FAILED" in str(ssl_error) or 'certificate verify failed' in str(ssl_error):
             # Raise an InvalidCertificateException
-            raise InvalidCertificateException("certificate verify failed", self.inputs["endpointProperties"]["hostName"], 443) from ssl_error
+            raise InvalidCertificateException("Certificate verify failed", self.inputs["endpointProperties"]["hostName"], 443) from ssl_error
         else:
             # Log the error and raise the exception
             logging.error(f"SSL error occurred: {ssl_error}")
@@ -105,7 +108,7 @@ def do_validate_endpoint(self, auth_credentials, cert):
     # The following except block has been added to handle all other errors
     except Exception as e:
         # Log the error and raise the exception
-        logging.error(f"An unexpected error occurred: {e}")
+        logging.error(f"An unexpected error occurred during the validation process: {e}")
 
         # Raise the exception
         raise e

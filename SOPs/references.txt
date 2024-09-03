@@ -1,8 +1,12 @@
 # vRA VMware IPAM SDK Link
-https://developer.vmware.com/web/sdk/1.1.0/vmware-vrealize-automation-third-party-ipam-sdk/
+https://developer.broadcom.com/sdks/vmware-aria-automation-third-party-ipam-sdk/latest/
 
 # vRA VMware IPAM SDK Documentation
 https://docs.vmware.com/en/VMware-Cloud-services/1.0/ipam_integration_contract_reqs.pdf
 
 # New VMware Site for Provider-specific IPAM integration package for Aria automation
 https://docs.vmware.com/en/VMware-Aria-Automation/all/SDK-create-external-IPAM-integration/GUID-7EFD97E6-EA0B-43EF-B6A5-7EB8A7D660D7.html#entity-getiprangesresponse--providerresponsebase-8
+
+# How to specify PHP IPAM properties in Blueprints:
+https://docs.vmware.com/en/VMware-Aria-Automation/SaaS/Using-Automation-Assembler/GUID-6BF1F830-FB58-40B7-BBE8-06658C3D33FC.html#GUID-6BF1F830-FB58-40B7-BBE8-06658C3D33FC
+

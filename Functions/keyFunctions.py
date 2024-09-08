@@ -82,49 +82,72 @@ def do_api_key_check(base_url, auth_credentials, cert):
 
 
 """
-Function to Authenticate with the IPAM service
-    API Token Prcess
-        REST API Call: /api/<API APP ID>/user/ (GET)
-            API Token should be using: SSL with API Code Token
-        Mandatory Information:
-            Header: token : <API Token>
-    User Account Prcess
-        REST API Call: /api/<API APP ID>/user/ (POST)
-            API APP ID should be using: SSL with User token
-        Mandatory Information:
-            Header: Authorization : Basic <Base64 Encoded Username:Password>
-        Returns:
-            API Token
-            API Token Expiry
-        Example JSON Response:
+Function to Authenticate using API with the IPAM service
+    REST API Call: /api/<API APP ID>/user/ (GET)
+        API Token should be using: SSL with API Code Token
+    Mandatory Information:
+        Header: token : <API Token>
+
+Function to Authenticate using User Account with the IPAM service
+    REST API Call: /api/<API APP ID>/user/ (POST)
+        API APP ID should be using: SSL with User token
+    Mandatory Information:
+        Header: Authorization : Basic <Base64 Encoded Username:Password>
+    Returns:
+        data {
+            token : <API Token>
+            expires : <Token Expiry Date>
+        }
 
 Function to Revoke authentication with the IPAM service
     REST API Call: /api/<API APP ID>/user/ (DELETE)
-Function to create IP Records in the IPAM service
+    Mandatory Information:
+        Header:
+            token : <API Token>
+
+Function to create IP Records in the IPAM service (Static Allocation)
     REST API Call: /api/<API APP ID>/addresses/ (POST)
     Mandatory Information:
         subnetId
         ip
+    Optional Information:
         hostname
         owner
         note
-    Optional Information:
         description
         is_gateway
         mac
         excludePing
 
-Function to delete IP Records in the IPAM service
-    REST API Call: /api/<API APP ID>/addresses/{ip}/{subnetId}/ (DELETE)
+Function to create IP Record using first free within subnet in the IPAM service (Dynamic Allocation)
+    REST API Call: /api/<API APP ID>/addresses/first_free/<subnetId>/ (GET)
+    Mandatory Information:
+        subnetId
+    Optional Information:
+        hostname
+        owner
+        note
+        description
+        is_gateway
+        mac
+        excludePing
+        
+Function to delete IP Record by subnet in the IPAM service
+    REST API Call: /api/<API APP ID>/addresses/<ip>/<subnetId>/ (DELETE)
     Mandatory Information:
         ip
         subnetId
+
+Function to delete IP Record by ID in the IPAM service
+    REST API Call: /api/<API APP ID>/addresses/<id>/ (DELETE)
+    Mandatory Information:
+        id
+
 Function to update IP Records in the IPAM service
-    REST API Call: /api/<API APP ID>/addresses/{id}/ (PATCH)
+    REST API Call: /api/<API APP ID>/addresses/<id>/ (PATCH)
     Mandatory Information:
         id
     Optional Information:
-        ip
         is_gateway
         description
         hostname
@@ -132,10 +155,41 @@ Function to update IP Records in the IPAM service
         owner
         note
         excludePing
-Function to get IP Range Subnets from the IPAM service
+
+RULES:
+    IP Ranges and IP Blocks are subnets in PHP IPAM
+    Subnets that are considered IP Ranges can become IP Blocks
+        - Any existing IP address in the subnet will become orphaned
+        - Existing IP addresses can not be moved to another subnet
+    Subnets that are considered IP Blocks can become IP Ranges
+        - This occurs when no subnets exist within the subnet
+
+    To Determine IP Range Subnet:
+        - IF subnet already has IP addresses allocated then it is an IP Range
+        - ELSE IF subnet can have IP addresses allocated then it is an IP Range
+        - ELSE it is an IP Block
+    
+    To Determine IP Block Subnet:
+        - Any subnet can become an IP Block
+        - IF subnet has no IP addresses allocated then it is an IP Block
+        - ELSE IF subnet cannot have IP addresses allocated then it is an IP Block
+        - ELSE it is an IP Range
+        
+Function to get IP Range Subnet by ID from the IPAM service
+    REST API Call: /api/<API APP ID>/subnets/<subnetId>/ (GET)
+    Mandatory Information:
+        subnetId
+    
+
 Function to get IP Block Subnets from the IPAM service
+
+
 Function to allocate IP Range Subnets to the IPAM service
+
+
 Function to deallocate IP Range Subnets from the IPAM service
+
+
 """
 
 def do_validate_endpoint(self, auth_credentials, cert):

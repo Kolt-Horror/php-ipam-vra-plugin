@@ -13,11 +13,19 @@
                         "display":"textField"
                      },
                      {
-                        "id":"privateKeyId",
+                        "id":"port",
                         "display":"textField"
                      },
                      {
-                        "id":"privateKey",
+                        "id":"serviceAccount",
+                        "display":"booleanField"
+                     },
+                     {
+                        "id":"appId",
+                        "display":"textField"
+                     },
+                     {
+                        "id":"apiKey",
                         "display":"passwordField"
                      }
                   ]
@@ -31,22 +39,40 @@
          "type":{
             "dataType":"string"
          },
-         "label":"Hostname",
+         "label":"Hostname (e.g. ipam.example.com or 10.0.0.1)",
          "constraints":{
             "required":true
          }
       },
-      "privateKeyId":{
+      "port":{
+         "type":{
+            "dataType":"integer"
+         },
+         "label":"URL Port",
+         "constraints":{
+            "required":false
+         }
+      },
+      "serviceAccount":{
+         "type":{
+            "dataType":"boolean"
+         },
+         "label":"Is a Service Account being used?",
+         "constraints":{
+            "required":true
+         }
+      },
+      "appId":{
          "type":{
             "dataType":"string"
          },
-         "label":"API Key Name",
+         "label":"PHP IPAM API name",
          "constraints":{
             "required":true
          }
       },
-      "privateKey":{
-         "label":"API Key Secret",
+      "apiKey":{
+         "label":"PHP IPAM API Token",
          "type":{
             "dataType":"secureString"
          },

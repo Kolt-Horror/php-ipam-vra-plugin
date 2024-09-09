@@ -48,7 +48,7 @@ def do_validate_endpoint(self, auth_credentials, cert):
     phpIpamEndpointProperties = self.inputs['endpointProperties']
 
     # If a port number is provided, append it to the hostname
-    if phpIpamEndpointProperties['port'] is not None and phpIpamEndpointProperties['port'] != "":
+    if phpIpamEndpointProperties['portCheck'].lower() is "true":
         phpIpamEndpointProperties['hostName'] = f"{phpIpamEndpointProperties['hostName']}:{phpIpamEndpointProperties['port']}"
 
     # Initialize the base PHP IPAM URL to be used for the rest call
@@ -57,7 +57,7 @@ def do_validate_endpoint(self, auth_credentials, cert):
     # Try to make the rest call to the PHP IPAM API
     try:
         # Check if the user account or token is being used for authentication
-        if phpIpamEndpointProperties['serviceAccountCheck'] is False:
+        if phpIpamEndpointProperties['serviceAccountCheck'] is None or phpIpamEndpointProperties['serviceAccountCheck'].lower() is "true":
             # Validate the API key and return the headers for use in subsequent API calls.
             api_headers = do_api_key_check(base_url, phpIpamEndpointProperties, cert)
         else:
@@ -67,7 +67,7 @@ def do_validate_endpoint(self, auth_credentials, cert):
         # IF the api_headers is a dictionary with a key "token", then the token is valid
         if "token" in api_headers:
             # If the service account check is True then the service account token revocation is required
-            if phpIpamEndpointProperties['serviceAccountCheck'] is True:
+            if phpIpamEndpointProperties['serviceAccountCheck'].lower() is "true":
                 # If the user account check was successful, revoke the token.
                 do_revoke_user_token(base_url, api_headers, cert)
             
@@ -85,7 +85,7 @@ def do_validate_endpoint(self, auth_credentials, cert):
         """
         if "SSLCertVerificationError" in str(ssl_error) or "CERTIFICATE_VERIFY_FAILED" in str(ssl_error) or 'certificate verify failed' in str(ssl_error):
             # Raise an InvalidCertificateException
-            raise InvalidCertificateException("Certificate verify failed", phpIpamEndpointProperties["hostName"], 443) from ssl_error
+            raise InvalidCertificateException("Certificate verify failed", phpIpamEndpointProperties['hostName'], 443) from ssl_error
         else:
             # Log the error and raise the exception
             logging.error(f"SSL error occurred: {ssl_error}")
@@ -106,7 +106,7 @@ def do_api_key_check(base_url, phpIpamEndpointProperties, cert):
     url = f"{base_url}/user/"
 
     # Verify that the API key is not empty.
-    if phpIpamEndpointProperties["apiKey"] is None or phpIpamEndpointProperties["apiKey"] == "":
+    if phpIpamEndpointProperties['apiKey'] is None or phpIpamEndpointProperties['apiKey'] == "":
         # Log the error and raise the exception
         logging.error("API key is empty")
 
@@ -136,7 +136,7 @@ def do_api_key_check(base_url, phpIpamEndpointProperties, cert):
     logging.info("API key check successful")
 
     # Verify that the token was successfully authenticated.
-    if response["success"] is True:
+    if response['success'] is True:
         # Return True if the token was revoked successfully.
         return api_headers
     else:
@@ -152,7 +152,7 @@ def do_user_account_check(base_url, phpIpamEndpointProperties, cert):
     url = f"{base_url}/user/"
 
     # Verify that the service account username and password are not empty.
-    if phpIpamEndpointProperties["serviceAccountUsername"] is None or phpIpamEndpointProperties["serviceAccountUsername"] == "" or phpIpamEndpointProperties["serviceAccountPassword"] is None or phpIpamEndpointProperties["serviceAccountPassword"] == "":
+    if phpIpamEndpointProperties.get('serviceAccountUsername') is None or phpIpamEndpointProperties.get('serviceAccountUsername') == "" or phpIpamEndpointProperties.get('serviceAccountPassword') is None or phpIpamEndpointProperties.get('serviceAccountPassword') == "":
         # Log the error and raise the exception
         logging.error("Service account username or password is empty")
 
@@ -160,10 +160,10 @@ def do_user_account_check(base_url, phpIpamEndpointProperties, cert):
         raise Exception("Service account username or password is empty")
 
     # Construct the authentication key for the request.
-    authKey = f"{phpIpamEndpointProperties['serviceAccountUsername']}:{phpIpamEndpointProperties['serviceAccountPassword']}"
+    authKey = phpIpamEndpointProperties.get('serviceAccountUsername') + ":" + phpIpamEndpointProperties.get('serviceAccountPassword')
 
     # Convert the string to bytes.
-    authKey = authKey.encode('utf-8')
+    authKey = authKey.encode("utf-8")
 
     # Convert the byte key to base64 encoding.
     authKey = base64.b64encode(authKey)
@@ -187,12 +187,12 @@ def do_user_account_check(base_url, phpIpamEndpointProperties, cert):
         # Raise the exception
         raise e
 
-    if response["success"] is True:
+    if response['success'] is True:
         # Log the successful API key check.
         logging.info("API user check successful")
 
         # Get the token and expiry time from the response
-        token = request.response.json()["data"]["token"]
+        token = request.response.json()['data']['token']
 
         # Create a dictionary that builds the base for further API calls.
         api_headers = {
@@ -230,7 +230,7 @@ def do_revoke_user_token(base_url, api_headers, cert):
     logging.info("Service Account token revoked")
 
     # Verify that the token was successfully revoked.
-    if response["success"] is True:
+    if response['success'] is True:
         # Return True if the token was revoked successfully.
         return True
     else:

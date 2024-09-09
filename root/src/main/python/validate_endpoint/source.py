@@ -45,34 +45,32 @@ def handler(context, inputs):
 # Function to validate the endpoint
 def do_validate_endpoint(self, auth_credentials, cert):
     # Get the PHP IPAM plugin default information
-    phpIpamData = self.inputs['endpointProperties']
+    phpIpamEndpointProperties = self.inputs['endpointProperties']
 
     # If a port number is provided, append it to the hostname
-    if phpIpamData['port'] is not None:
-        phpIpamData['hostName'] = f"{phpIpamData['hostName']}:{phpIpamData['port']}"
+    if phpIpamEndpointProperties['port'] is not None and phpIpamEndpointProperties['port'] != "":
+        phpIpamEndpointProperties['hostName'] = f"{phpIpamEndpointProperties['hostName']}:{phpIpamEndpointProperties['port']}"
 
     # Initialize the base PHP IPAM URL to be used for the rest call
-    base_url = f"https://{phpIpamData['hostName']}/api/{phpIpamData['appId']}"
+    base_url = f"https://{phpIpamEndpointProperties['hostName']}/api/{phpIpamEndpointProperties['appId']}"
 
     # Try to make the rest call to the PHP IPAM API
     try:
         # Check if the user account or token is being used for authentication
-        if phpIpamData['serviceAccount'] is True:
-            # Validate the user account and return the headers for use in subsequent API calls.
-            api_headers = do_user_account_check(base_url, phpIpamData, cert)
-
-            # If the user account check was successful, revoke the token.
-            do_revoke_user_token(base_url, api_headers, cert)
-
-            # As the token is valid, we can proceed with returning the authorization message to vRA
-            return {
-                "message": "Validated successfully",
-                "statusCode": "200"
-            }
-        else:
+        if phpIpamEndpointProperties['serviceAccountCheck'] is False:
             # Validate the API key and return the headers for use in subsequent API calls.
-            do_api_key_check(base_url, phpIpamData, cert)
+            api_headers = do_api_key_check(base_url, phpIpamEndpointProperties, cert)
+        else:
+            # Validate the user account and return the headers for use in subsequent API calls.
+            api_headers = do_user_account_check(base_url, phpIpamEndpointProperties, cert)
 
+        # IF the api_headers is a dictionary with a key "token", then the token is valid
+        if "token" in api_headers:
+            # If the service account check is True then the service account token revocation is required
+            if phpIpamEndpointProperties['serviceAccountCheck'] is True:
+                # If the user account check was successful, revoke the token.
+                do_revoke_user_token(base_url, api_headers, cert)
+            
             # As the token is valid, we can proceed with returning the authorization message to vRA
             return {
                 "message": "Validated successfully",
@@ -87,7 +85,7 @@ def do_validate_endpoint(self, auth_credentials, cert):
         """
         if "SSLCertVerificationError" in str(ssl_error) or "CERTIFICATE_VERIFY_FAILED" in str(ssl_error) or 'certificate verify failed' in str(ssl_error):
             # Raise an InvalidCertificateException
-            raise InvalidCertificateException("Certificate verify failed", phpIpamData["hostName"], 443) from ssl_error
+            raise InvalidCertificateException("Certificate verify failed", phpIpamEndpointProperties["hostName"], 443) from ssl_error
         else:
             # Log the error and raise the exception
             logging.error(f"SSL error occurred: {ssl_error}")
@@ -103,13 +101,21 @@ def do_validate_endpoint(self, auth_credentials, cert):
         raise e
 
 # Function to Authenticate using API with the IPAM service
-def do_api_key_check(base_url, phpIpamData, cert):
+def do_api_key_check(base_url, phpIpamEndpointProperties, cert):
     # Construct the URL to check the API key against the IPAM service.
     url = f"{base_url}/user/"
 
+    # Verify that the API key is not empty.
+    if phpIpamEndpointProperties["apiKey"] is None or phpIpamEndpointProperties["apiKey"] == "":
+        # Log the error and raise the exception
+        logging.error("API key is empty")
+
+        # Raise an exception
+        raise Exception("API key is empty")
+
     # Set up the headers for authentication.
     api_headers = {
-        "token": phpIpamData["apiKey"],
+        "token": phpIpamEndpointProperties["apiKey"],
         "Content-Type": "application/json"
     }
 
@@ -132,18 +138,29 @@ def do_api_key_check(base_url, phpIpamData, cert):
     # Verify that the token was successfully authenticated.
     if response["success"] is True:
         # Return True if the token was revoked successfully.
-        return True
+        return api_headers
     else:
-        # Return False if the token was not revoked.
-        return False
+        # Log the unsuccessful API key check.
+        logging.error("API key check unsuccessful as the response was not successful: " + str(response))
+
+        # Raise an exception
+        raise Exception("API key check response payload was not successful: " + str(response))
 
 # Function to Authenticate using User Account with the IPAM service
-def do_user_account_check(base_url, phpIpamData, cert):
+def do_user_account_check(base_url, phpIpamEndpointProperties, cert):
     # Construct the URL to check the API key against the IPAM service.
     url = f"{base_url}/user/"
 
+    # Verify that the service account username and password are not empty.
+    if phpIpamEndpointProperties["serviceAccountUsername"] is None or phpIpamEndpointProperties["serviceAccountUsername"] == "" or phpIpamEndpointProperties["serviceAccountPassword"] is None or phpIpamEndpointProperties["serviceAccountPassword"] == "":
+        # Log the error and raise the exception
+        logging.error("Service account username or password is empty")
+
+        # Raise an exception
+        raise Exception("Service account username or password is empty")
+
     # Construct the authentication key for the request.
-    authKey = f"{phpIpamData['appId']}:{phpIpamData['password']}"
+    authKey = f"{phpIpamEndpointProperties['serviceAccountUsername']}:{phpIpamEndpointProperties['serviceAccountPassword']}"
 
     # Convert the string to bytes.
     authKey = authKey.encode('utf-8')
@@ -165,7 +182,7 @@ def do_user_account_check(base_url, phpIpamData, cert):
         response = request.make_request("POST", url, headers=api_headers, verify=cert)
     except Exception as e:
         # Log the error and raise the exception
-        logging.error(f"An unexpected error occurred when performing Authentication Check: {e}")
+        logging.error(f"An unexpected error occurred when performing Service Account Authentication Check: {e}")
 
         # Raise the exception
         raise e
@@ -187,9 +204,9 @@ def do_user_account_check(base_url, phpIpamData, cert):
         return api_headers
     else:
         # Log the unsuccessful API key check.
-        logging.info("API user check unsuccessful")
+        logging.error("Service Account response payload check failed: " + str(response))
 
-        return False
+        return Exception("Service Account response payload check failed: " + str(response))
 
 # Function to revoke authentication for the user account token
 def do_revoke_user_token(base_url, api_headers, cert):
@@ -204,18 +221,20 @@ def do_revoke_user_token(base_url, api_headers, cert):
         response = request.make_request("DELETE", url, headers=api_headers, verify=cert)
     except Exception as e:
         # Log the error and raise the exception
-        logging.error(f"An unexpected error occurred when revoking the user token: {e}")
+        logging.error(f"An unexpected error occurred when revoking the Service Account token: {e}")
 
         # Raise the exception
         raise e
 
     # Log the successful token revocation.
-    logging.info("User token revoked")
+    logging.info("Service Account token revoked")
 
     # Verify that the token was successfully revoked.
     if response["success"] is True:
         # Return True if the token was revoked successfully.
         return True
     else:
-        # Return False if the token was not revoked.
-        return False
+        # Log the unsuccessful token revocation.
+        logging.error("Service Account token revocation unsuccessful: " + str(response))
+
+        return Exception("Service Account token revocation unsuccessful: " + str(response))

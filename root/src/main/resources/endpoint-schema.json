@@ -18,8 +18,8 @@
                         "signpostPosition":"right-middle"
                      },
                      {
-                        "id":"port",
-                        "display":"integerField",
+                        "id":"portCheck",
+                        "display":"checkbox",
                         "state": {
                             "read-only": false,
                             "visible": [
@@ -30,6 +30,28 @@
                                     "value": true
                                 }
                             ]
+                        },
+                        "signpostPosition":"right-middle"
+                     },
+                     {
+                        "id":"port",
+                        "display":"integerField",
+                        "state": {
+                           "read-only": false,
+                           "visible": [
+                              {
+                                 "equals": {
+                                    "portCheck": true
+                                 },
+                                 "value": true
+                              },
+                              {
+                                 "equals": {
+                                    "portCheck": false
+                                 },
+                                 "value": false
+                              }
+                           ]
                         },
                         "signpostPosition":"right-middle"
                      },
@@ -175,6 +197,20 @@
                             ]
                         },
                         "signpostPosition": "right-middle"
+                     },
+                     {
+                        "id":"privateKeyId",
+                        "display":"textField",
+                        "state": {
+                           "visible": false
+                        }
+                     },
+                     {
+                        "id":"privateKey",
+                        "display":"passwordField",
+                        "state": {
+                           "visible": false
+                        }
                      }
                   ]
                }
@@ -197,6 +233,17 @@
             "required": true
          }
       },
+      "portCheck":{
+         "label":"Use Custom Port",
+         "signpost": "Check this box if you want to use a custom port to communicate to target PHP IPAM system.",
+         "default": false,
+         "type":{
+            "dataType":"boolean"
+         },
+         "constraints":{
+            "required": false
+         }
+      },
       "port":{
          "label":"Port",
          "step": 1,
@@ -208,17 +255,31 @@
             "pattern": {
                 "value": "^([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$",
                 "message": ""
-            }
+            },
+            "required": [
+               {
+                  "equals": {
+                     "portCheck": true
+                  },
+                  "value": true
+               },
+               {
+                  "equals": {
+                     "portCheck": false
+                  },
+                  "value": false
+               }
+            ]
          }
       },
       "serviceAccountCheck":{
          "label": "Use Service Account",
-            "signpost": "Please consult your security team before using a Service Account.",
-            "type": {
-               "dataType": "boolean"
-            },
-            "default": false,
-            "constraints": {}
+         "signpost": "Please consult your security team before using a Service Account.",
+         "type": {
+            "dataType": "boolean"
+         },
+         "default": false,
+         "constraints": {}
       },
       "serviceAccountUsername":{
          "label":"Service Account Username",
@@ -332,6 +393,26 @@
                 ],
                 "min-value": 1
             }
+      },
+      "privateKeyId":{
+         "label": "Unused",
+         "type": {
+            "dataType": "string"
+         },
+         "default": "unused",
+         "constraints": {
+            "required": false
+         }
+      },
+      "privateKey":{
+         "label": "Unused",
+         "type": {
+            "dataType": "secureString"
+         },
+         "default": "unused",
+         "constraints": {
+            "required": false
+         }
       }
    },
    "options":{

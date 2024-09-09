@@ -1,10 +1,10 @@
-FROM photon:3.0-20200609
+FROM photon:latest
 
 ADD target/python /ipam/python
 
+RUN tdnf clean all
 RUN tdnf makecache
 RUN tdnf update -y
-RUN tdnf install -y tdnf
 
 RUN tdnf install -y python3-pip.noarch python3-devel gcc glibc-devel binutils linux-api-headers shadow && \
     pip3 install --upgrade pip setuptools && \

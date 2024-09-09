@@ -10,23 +10,171 @@
                   "fields":[
                      {
                         "id":"hostName",
-                        "display":"textField"
+                        "display":"textField",
+                        "state": {
+                            "visible": true,
+                            "read-only": false
+                        },
+                        "signpostPosition":"right-middle"
                      },
                      {
                         "id":"port",
-                        "display":"textField"
+                        "display":"integerField",
+                        "state": {
+                            "read-only": false,
+                            "visible": [
+                                {
+                                    "notEmpty": {
+                                        "hostName": ""
+                                    },
+                                    "value": true
+                                }
+                            ]
+                        },
+                        "signpostPosition":"right-middle"
                      },
                      {
-                        "id":"serviceAccount",
-                        "display":"booleanField"
+                        "id":"serviceAccountCheck",
+                        "display":"checkbox",
+                        "state": {
+                            "read-only": false,
+                            "visible": [
+                                {
+                                    "notEmpty": {
+                                        "hostName": ""
+                                    },
+                                    "value": true
+                                }
+                            ]
+                        },
+                        "signpostPosition":"right-middle"
+                     },
+                     {
+                        "id":"serviceAccountUsername",
+                        "display":"textField",
+                        "state": {
+                            "read-only": false,
+                            "visible": [
+                                {
+                                    "equals": {
+                                        "serviceAccountCheck": false
+                                    },
+                                    "value": false
+                                },
+                                {
+                                    "equals": {
+                                        "serviceAccountCheck": true
+                                    },
+                                    "value": true
+                                }
+                            ]
+                        },
+                        "signpostPosition":"right-middle"
+                     },
+                     {
+                        "id":"serviceAccountPassword",
+                        "display":"passwordField",
+                        
+                        "state": {
+                           "read-only": false,
+                           "visible": [
+                               {
+                                   "equals": {
+                                       "serviceAccountCheck": false
+                                   },
+                                   "value": false
+                               },
+                               {
+                                   "equals": {
+                                       "serviceAccountCheck": true
+                                   },
+                                   "value": true
+                               }
+                           ]
+                       },
+                        "signpostPosition":"right-middle"
                      },
                      {
                         "id":"appId",
-                        "display":"textField"
+                        "display":"textField",
+                        "state": {
+                            "read-only": false,
+                            "visible": [
+                                {
+                                    "notEmpty": {
+                                        "hostName": ""
+                                    },
+                                    "value": true
+                                },
+                                {
+                                    "equals": {
+                                        "serviceAccountCheck": true
+                                    },
+                                    "value": true
+                                }
+                            ]
+                        },
+                        "signpostPosition": "right-middle"
                      },
                      {
                         "id":"apiKey",
-                        "display":"passwordField"
+                        "display":"passwordField",
+                        "state": {
+                            "read-only": false,
+                            "visible": [
+                                {
+                                    "notEmpty": {
+                                        "hostName": ""
+                                    },
+                                    "value": true
+                                },
+                                {
+                                    "equals": {
+                                        "serviceAccountCheck": true
+                                    },
+                                    "value": false
+                                }
+                            ]
+                        },
+                        "signpostPosition": "right-middle"
+                     },
+                     {
+                        "id":"sectionsAccessCheck",
+                        "display":"checkbox",
+                        "state": {
+                            "read-only": false,
+                            "visible": [
+                                {
+                                    "notEmpty": {
+                                        "hostName": ""
+                                    },
+                                    "value": true
+                                }
+                            ]
+                        },
+                        "signpostPosition": "right-middle"
+                     },
+                     {
+                        "id":"authorizedSections",
+                        "display":"array",
+                        "state": {
+                            "read-only": false,
+                            "visible": [
+                                {
+                                    "equals": {
+                                        "sectionsAccessCheck": true
+                                    },
+                                    "value": true
+                                },
+                                {
+                                    "equals": {
+                                        "sectionsAccessCheck": false
+                                    },
+                                    "value": false
+                                }
+                            ]
+                        },
+                        "signpostPosition": "right-middle"
                      }
                   ]
                }
@@ -36,52 +184,157 @@
    },
    "schema":{
       "hostName":{
+         "label":"Hostname",
+         "signpost": "FQDN or IP address of the PHP IPAM system to be used.",
          "type":{
             "dataType":"string"
          },
-         "label":"Hostname (e.g. ipam.example.com or 10.0.0.1)",
          "constraints":{
-            "required":true
+            "pattern": {
+                "value": "^((?=.{1,255}$)([a-zA-Z0-9][-a-zA-Z0-9]*[a-zA-Z0-9]\\.)+[a-zA-Z]{2,}|((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))$",
+                "message": ""
+            },
+            "required": true
          }
       },
       "port":{
+         "label":"Port",
+         "step": 1,
+         "signpost": "Port that will be used to communicate to target PHP IPAM system.",
          "type":{
             "dataType":"integer"
          },
-         "label":"URL Port",
          "constraints":{
-            "required":false
+            "pattern": {
+                "value": "^([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$",
+                "message": ""
+            }
          }
       },
-      "serviceAccount":{
-         "type":{
-            "dataType":"boolean"
+      "serviceAccountCheck":{
+         "label": "Use Service Account",
+            "signpost": "Please consult your security team before using a Service Account.",
+            "type": {
+               "dataType": "boolean"
+            },
+            "default": false,
+            "constraints": {}
+      },
+      "serviceAccountUsername":{
+         "label":"Service Account Username",
+         "signpost": "Service Account Username",
+         "type": {
+            "dataType": "string"
          },
-         "label":"Is a Service Account being used?",
-         "constraints":{
-            "required":true
+         "constraints": {
+            "required": [
+               {
+                  "equals": {
+                     "serviceAccountCheck": true
+                  },
+                  "value": true
+               },
+               {
+                  "equals": {
+                     "serviceAccountCheck": false
+                  },
+                  "value": false
+               }
+            ],
+            "min-value": 1
+         }
+      },
+      "serviceAccountPassword":{
+         "label": "Service Account Password",
+         "signpost": "Password cannot be less than 12 characters long",
+         "type": {
+            "dataType": "secureString"
+         },
+         "constraints": {
+            "required": [
+               {
+                  "equals": {
+                     "serviceAccountCheck": true
+                  },
+                  "value": true
+               },
+               {
+                  "equals": {
+                     "serviceAccountCheck": false
+                  },
+                  "value": false
+               }
+            ],
+            "min-value": 12
          }
       },
       "appId":{
-         "type":{
-            "dataType":"string"
+         "label": "API Name",
+         "type": {
+            "dataType": "string"
          },
-         "label":"PHP IPAM API name",
-         "constraints":{
-            "required":true
+         "constraints": {
+            "min-value": 1,
+            "required": true
          }
       },
       "apiKey":{
-         "label":"PHP IPAM API Token",
-         "type":{
-            "dataType":"secureString"
+         "label": "API Token",
+         "type": {
+            "dataType": "secureString"
          },
-         "constraints":{
-            "required":true
+         "constraints": {
+            "required": [
+               {
+                  "equals": {
+                        "serviceAccountCheck": true
+                  },
+                  "value": false
+               },
+               {
+                  "equals": {
+                        "serviceAccountCheck": false
+                  },
+                  "value": true
+               }
+            ]
          }
+      },
+      "sectionsAccessCheck":{
+         "label": "Limit Sections Access",
+         "type": {
+            "dataType": "boolean"
+         },
+         "default": false,
+         "constraints": {}
+      },
+      "authorizedSections":{
+         "label": "Authorized Sections",
+            "signpost": "The PHP IPAM Sections that the integration is authorized to access",
+            "type": {
+                "dataType": "string",
+                "isMultiple": true
+            },
+            "constraints": {
+                "required": [
+                    {
+                        "equals": {
+                            "checkbox_3e00ddbc": true
+                        },
+                        "value": true
+                    },
+                    {
+                        "equals": {
+                            "checkbox_3e00ddbc": false
+                        },
+                        "value": false
+                    }
+                ],
+                "min-value": 1
+            }
       }
    },
    "options":{
-
+      "externalValidations": []
    }
 }
